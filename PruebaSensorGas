@@ -1,0 +1,17 @@
+//Milsztain, Macia, Colombres, Reboratti
+
+int pingas = 34;
+int lecgas;
+
+void setup() 
+{
+  Serial.begin(115200);
+}
+
+void loop() 
+{
+  lecgas = analogRead(pingas);
+
+  Serial.print("Lectura gas: ");
+  Serial.println(valorGas);
+}
