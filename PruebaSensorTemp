@@ -2,25 +2,27 @@
 
 //PRUEBA TEMPERATURA
 
-#include "DHT.h"
+#include <Wire.h>
+#include <Adafruit_AHTX0.h>
 
-#define DHTPIN 23
-#define DHTTYPE DHT11
-DHT dht(DHTPIN, DHTTYPE);
-
+Adafruit_AHTX0 aht;
 float lectemp;
 
 void setup() 
 {
   Serial.begin(115200);
 
-  //inicio del DHT
-  dht.begin();
+  //inicio del AHT
+  aht.begin()
 }
 
 void loop() 
 {
-  lectemp = dht.readTemperature();    //Lectura temperatura
+  //Sensor Temp
+  sensors_event_t humidity, temp;
+  aht.getEvent(&humidity, &temp);
+  
+  lectemp = temp.temperature; //Lectura Temp (C°)
   
   Serial.print("Lectura temp: ");
   Serial.println(lectemp);
