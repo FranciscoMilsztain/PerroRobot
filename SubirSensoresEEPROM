@@ -1,0 +1,208 @@
+//Milsztain, Macia, Colombres, Reboratti
+
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BMP280.h>
+#include <Adafruit_AHTX0.h>
+#include <Preferences.h>
+
+//***BOTONES***\\
+
+  #define BOT1 1
+  #define BOT2 2
+  #define BOT3 3
+  #define BOT4 4
+  #define BOT5 5
+
+  int lecb1;
+  int lecb2;
+  int lecb3;
+  int lecb4;
+  int lecb5;
+
+  int bloqb1;
+  int bloqb2;
+  int bloqb3;
+  int bloqb4;
+  int bloqb5;
+
+//***FIN BOTONES***\\
+
+
+//***SENSORES***\\
+
+  //Sensor Gas
+  int pingas = 34;
+  int lecgas;
+  int umbgas;
+
+  //Sensor Presion
+  Adafruit_BMP280 bmp;
+
+  float lecpres;
+  float umbpres;
+
+  //Sensor Luz
+  int pinluz = 0; //CAMBIAR ESTE PIN POR UNO ANALÓGICO
+  int lecluz;
+  int umbluz;
+
+  //Sensor Temp
+  Adafruit_AHTX0 aht;
+
+  float lectemp;
+  float umbtemp;
+
+//***FIN SENSORES***\\
+
+
+//***EEPROM***\\
+
+  Preferences umbral_eeprom;
+
+//***FIN EEPROM***\\
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void setup() 
+{
+  Serial.begin(115200);
+
+//***BOTONES***\\
+
+pinMode(BOT1, INPUT);
+pinMode(BOT2, INPUT);
+pinMode(BOT3, INPUT);
+pinMode(BOT4, INPUT);
+pinMode(BOT5, INPUT);
+
+//***FIN BOTONES***\\
+
+
+//***SENSORES***\\
+
+  //Sensor Gas no necesita setup
+
+  //Sensor Presion
+  bmp.begin(0x76);
+
+  //Sensor Luz
+  pinMode(pinluz, INPUT);
+
+  //Sensor Temp
+  aht.begin()
+  
+//***FIN SENSORES***\\
+
+
+//***EEPROM***\\
+
+  umbral_eeprom.begin("umbrales", true); //Modo Lectura
+
+  umbtemp = umbral_eeprom.getFloat("umbtemp", 24.0); //EEPROM TEMPERATURA
+  umbgas  = umbral_eeprom.getFloat("umbgas", 24.0);  //EEPROM GAS
+  umbpres = umbral_eeprom.getFloat("umbpres", 24.0); //EEPROM PRESION
+  umbluz  = umbral_eeprom.getFloat("umbluz", 24.0);  //EEPROM LUZ
+
+  umbral_eeprom.end();
+
+  Serial.println("Umbrales desde EEPROM:");
+  Serial.print("Temp: "); 
+  Serial.println(umbtemp);
+
+  Serial.print("Gas: "); 
+  Serial.println(umbgas);
+  
+  Serial.print("Presion: "); 
+  Serial.println(umbpres);
+  
+  Serial.print("Luz: "); 
+  Serial.println(umbluz);
+
+//***FIN EEPROM***\\
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void loop() 
+{
+
+//***BOTONES***\\
+
+lecb1 = digitalRead(BOT1);
+lecb2 = digitalRead(BOT2);
+lecb3 = digitalRead(BOT3);
+lecb4 = digitalRead(BOT4);
+lecb5 = digitalRead(BOT5);
+
+//***FIN BOTONES***\\
+
+
+//***SENSORES***\\
+
+  //Sensor Gas
+  lecgas = analogRead(pingas); //Lectura gas
+
+  Serial.print("Lectura gas: ");
+  Serial.println(valGas);
+
+  //Sensor Presion
+  lecpres = bmp.readPressure(); //Se lee la presion en Pascales
+
+  Serial.print("Lectura presion: ");
+  Serial.println(lecpres);
+
+  //Sensor Luz
+  lecluz = analogRead(pinluz); //Lectura Luz
+  
+  Serial.print("Lectura luz: ");
+  Serial.println(lecluz);
+
+  //Sensor Temp
+  sensors_event_t humidity, temp;
+  aht.getEvent(&humidity, &temp);
+  
+  lectemp = temp.temperature; //Lectura Temp (C°)
+  
+  Serial.print("Lectura temp: ");
+  Serial.println(lectemp);
+  
+//***FIN SENSORES***\\
+
+
+//***EEPROM***\\
+
+  if (lecb1 == 1 && bloqb1 == 0)
+  {
+    bloqb1 = 1;
+    
+    umbral_eeprom.begin("umbrales", false);
+
+    umbral_eeprom.putFloat("umbtemp", umbtemp); //Actualizar Temperatura
+    umbral_eeprom.putFloat("umbgas", umbgas);   //Actualizar Gas
+    umbral_eeprom.putFloat("umbpres", umbpres); //Actualizar Presion
+    umbral_eeprom.putFloat("umbluz", umbluz);   //Actualizar Luz
+
+    Serial.print("Umbral de Temperatura actualizado: ");
+    Serial.println(umbtemp);
+
+    Serial.print("Umbral de Gas actualizado: ");
+    Serial.println(umbgas);
+
+    Serial.print("Umbral de Presion actualizado: ");
+    Serial.println(umbpres);
+
+    Serial.print("Umbral de Luz actualizado: ");
+    Serial.println(umbluz);
+
+    umbral_eeprom.end();
+  }
+
+  if (lecb1 == 0)
+  {
+    bloqb1 = 0;
+  }
+
+//***FIN EEPROM***\\
+
+}
