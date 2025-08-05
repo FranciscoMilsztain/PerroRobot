@@ -1,0 +1,19 @@
+//Milsztain, Macia, Colombres, Reboratti
+
+//PRUEBA LUMINIDAD
+int pinluz = 0 //CAMBIAR ESTE PIN POR UNO ANALÓGICO
+int lecluz;
+
+void setup() 
+{
+  Serial.begin(115200);
+  pinMode(pinluz, INPUT);
+}
+
+void loop() 
+{
+  lecluz = analogRead(pinluz);
+  
+  Serial.print("Lectura luz: ");
+  Serial.println(lecluz);
+}
