@@ -1,0 +1,87 @@
+//Milsztain, Macia, Colombres, Reboratti
+
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BMP280.h>
+#include "DHT.h"
+
+//***SENSORES***\\
+
+  //Sensor Gas
+  int pingas = 34;
+  int lecgas;
+
+  //Sensor Presion
+  Adafruit_BMP280 bmp;
+  float lecpres;
+
+  //Sensor Luz
+  int pinluz = 0 //CAMBIAR ESTE PIN POR UNO ANALÓGICO
+  int lecluz;
+
+  //Sensor Temp
+  #define DHTPIN 23
+  #define DHTTYPE DHT11
+  DHT dht(DHTPIN, DHTTYPE);
+
+  float lectemp;
+
+//***FIN SENSORES***\\
+
+
+
+void setup() 
+{
+  Serial.begin(115200);
+
+//***SENSORES***\\
+
+  //Sensor Gas :: No necesita setup
+
+  //Sensor Presion
+  bmp.begin(0x76);
+
+  //Sensor Luz
+  pinMode(pinluz, INPUT);
+
+  //Sensor Temp
+  dht.begin();
+  
+//***FIN SENSORES***\\
+
+}
+
+
+
+void loop() 
+{
+
+//***SENSORES***\\
+
+  //Sensor Gas
+  lecgas = analogRead(pingas); //Lectura gas
+
+  Serial.print("Lectura gas: ");
+  Serial.println(valorGas);
+
+  //Sensor Presion
+  lecpres = bmp.readPressure(); //Se lee la presion en Pascales
+
+  Serial.print("Lectura presion: ");
+  Serial.println(lecpres);
+
+  //Sensor Luz
+  lecluz = analogRead(pinluz); //Lectura Luz
+  
+  Serial.print("Lectura luz: ");
+  Serial.println(lecluz);
+
+  //Sensor Temp
+  lectemp = dht.readTemperature(); //Lectura temperatura
+  
+  Serial.print("Lectura temp: ");
+  Serial.println(lectemp);
+  
+//***FIN SENSORES***\\
+
+}
