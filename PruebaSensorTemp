@@ -1,0 +1,27 @@
+//Milsztain, Macia, Colombres, Reboratti
+
+//PRUEBA TEMPERATURA
+
+#include "DHT.h"
+
+#define DHTPIN 23
+#define DHTTYPE DHT11
+DHT dht(DHTPIN, DHTTYPE);
+
+float lectemp;
+
+void setup() 
+{
+  Serial.begin(115200);
+
+  //inicio del DHT
+  dht.begin();
+}
+
+void loop() 
+{
+  lectemp = dht.readTemperature();    //Lectura temperatura
+  
+  Serial.print("Lectura temp: ");
+  Serial.println(lectemp);
+}
