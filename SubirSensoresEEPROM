@@ -106,7 +106,7 @@ pinMode(BOT5, INPUT);
 
   umbral_eeprom.end();
 
-  Serial.println("Umbrales desde EEPROM:");
+  Serial.println("---Umbrales---:");
   Serial.print("Temp: "); 
   Serial.println(umbtemp);
 
