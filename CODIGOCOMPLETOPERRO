@@ -1,0 +1,342 @@
+//Milsztain, Macia, Colombres, Reboratti
+
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BMP280.h>
+#include <Adafruit_AHTX0.h>
+#include <Preferences.h>
+
+
+//***ESTADOS***
+
+int ESTADO = 1;
+#define PANTALLA1 1
+#define PANTALLA2 2
+#define FASE1 3
+#define FASE2 4
+#define CAMBIO_UMBRAL 5
+#define SUMAR_UMBRAL 6
+#define RESTAR_UMBRAL 7
+#define SUMAR_GMT 8
+#define RESTAR_GMT 9
+#define UMBRAL_TEMP_SUPERADO 10
+#define UMBRAL_PRES_SUPERADO 11
+#define UMBRAL_LUZ_SUPERADO 12
+#define UMBRAL_GAS_SUPERADO 13
+
+//***FIN ESTADOS***
+
+
+//***BOTONES***
+
+  #define BOT1 1
+  #define BOT2 2
+  #define BOT3 3
+  #define BOT4 4
+  #define BOT5 5
+
+  int lecb1;
+  int lecb2;
+  int lecb3;
+  int lecb4;
+  int lecb5;
+
+  int bloqb1;
+  int bloqb2;
+  int bloqb3;
+  int bloqb4;
+  int bloqb5;
+
+//***FIN BOTONES***
+
+
+//***DISPLAY***
+
+LiquidCrystal_I2C lcd_1(0x27, 16, 2);
+
+//***FIN DISPLAY***
+
+
+//***SENSORES***
+
+  //Sensor Gas
+  int pingas = 34;
+  int lecgas;
+  int umbgas;
+
+  //Sensor Presion
+  Adafruit_BMP280 bmp;
+
+  float lecpres;
+  float umbpres;
+
+  //Sensor Luz
+  int pinluz = 0; //CAMBIAR ESTE PIN POR UNO ANALÓGICO
+  int lecluz;
+  int umbluz;
+
+  //Sensor Temp
+  Adafruit_AHTX0 aht;
+
+  float lectemp;
+  float umbtemp;
+
+//***FIN SENSORES***
+
+
+//***VARIABLES TIEMPO***
+
+int timer;
+int timer1000;
+
+//***FIN VARIABLES TIEMPO***
+
+//***EEPROM***
+
+  Preferences umbral_eeprom;
+
+//***FIN EEPROM***
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void setup() 
+{
+  Serial.begin(115200);
+
+//***BOTONES***
+
+pinMode(BOT1, INPUT);
+pinMode(BOT2, INPUT);
+pinMode(BOT3, INPUT);
+pinMode(BOT4, INPUT);
+pinMode(BOT5, INPUT);
+
+//***FIN BOTONES***
+
+
+//***SENSORES***
+
+  //Sensor Gas no necesita setup
+
+  //Sensor Presion
+  bmp.begin(0x76);
+
+  //Sensor Luz
+  pinMode(pinluz, INPUT);
+
+  //Sensor Temp
+  aht.begin()
+  
+//***FIN SENSORES***
+
+
+//***DISPLAY***
+
+  lcd_1.init();
+  lcd_1.backlight();
+  lcd_1.setCursor(0, 0);
+
+//***FIN DISPLAY***
+
+
+//***EEPROM***
+
+  umbral_eeprom.begin("umbrales", true); //Modo Lectura
+
+  umbtemp = umbral_eeprom.getFloat("umbtemp", 24.0); //EEPROM TEMPERATURA
+  umbgas  = umbral_eeprom.getFloat("umbgas", 24.0);  //EEPROM GAS
+  umbpres = umbral_eeprom.getFloat("umbpres", 24.0); //EEPROM PRESION
+  umbluz  = umbral_eeprom.getFloat("umbluz", 24.0);  //EEPROM LUZ
+
+  umbral_eeprom.end();
+
+  Serial.println("---Umbrales---:");
+  Serial.print("Temp: "); 
+  Serial.println(umbtemp);
+
+  Serial.print("Gas: "); 
+  Serial.println(umbgas);
+  
+  Serial.print("Presion: "); 
+  Serial.println(umbpres);
+  
+  Serial.print("Luz: "); 
+  Serial.println(umbluz);
+
+//***FIN EEPROM***
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void loop() 
+{
+
+  //***SETEO MILLIS***
+
+  timer = millis();
+
+  //***FIN MILLIS***
+
+  switch (ESTADO)
+  {
+    case PANTALLA1:
+
+
+
+    break;
+
+    case PANTALLA2:
+
+    
+    
+    break;
+
+    case FASE1:
+
+
+
+    break;
+
+    case FASE2:
+
+
+
+    break;
+
+    case CAMBIO_UMBRAL:
+
+
+
+    break;
+
+    case SUMAR_UMBRAL:
+
+
+
+    break;
+
+    case RESTAR_UMBRAL:
+
+
+
+    break;
+
+    case SUMAR_GMT:
+
+
+
+    break;
+
+    case RESTAR_GMT:
+
+
+
+    break;
+
+    case UMBRAL_TEMP_SUPERADO:
+
+
+
+    break;
+
+    case UMBRAL_PRES_SUPERADO:
+
+
+
+    break;
+
+    case UMBRAL_LUZ_SUPERADO:
+
+
+
+    break;
+
+    case UMBRAL_GAS_SUPERADO:
+
+
+
+    break;
+  }
+
+
+
+//***BOTONES***
+
+  lecb1 = digitalRead(BOT1);
+  lecb2 = digitalRead(BOT2);
+  lecb3 = digitalRead(BOT3);
+  lecb4 = digitalRead(BOT4);
+  lecb5 = digitalRead(BOT5);
+
+//***FIN BOTONES***
+
+
+//***SENSORES***
+
+  //Sensor Gas
+  lecgas = analogRead(pingas); //Lectura gas
+
+  Serial.print("Lectura gas: ");
+  Serial.println(valGas);
+
+  //Sensor Presion
+  lecpres = bmp.readPressure(); //Se lee la presion en Pascales
+
+  Serial.print("Lectura presion: ");
+  Serial.println(lecpres);
+
+  //Sensor Luz
+  lecluz = analogRead(pinluz); //Lectura Luz
+  
+  Serial.print("Lectura luz: ");
+  Serial.println(lecluz);
+
+  //Sensor Temp
+  sensors_event_t humidity, temp;
+  aht.getEvent(&humidity, &temp);
+  
+  lectemp = temp.temperature; //Lectura Temp (C°)
+  
+  Serial.print("Lectura temp: ");
+  Serial.println(lectemp);
+  
+//***FIN SENSORES***
+
+
+//***EEPROM***
+
+  if (lecb1 == 1 && bloqb1 == 0)
+  {
+    bloqb1 = 1;
+    
+    umbral_eeprom.begin("umbrales", false);
+
+    umbral_eeprom.putFloat("umbtemp", umbtemp); //Actualizar Temperatura
+    umbral_eeprom.putFloat("umbgas", umbgas);   //Actualizar Gas
+    umbral_eeprom.putFloat("umbpres", umbpres); //Actualizar Presion
+    umbral_eeprom.putFloat("umbluz", umbluz);   //Actualizar Luz
+
+    Serial.print("Umbral de Temperatura actualizado: ");
+    Serial.println(umbtemp);
+
+    Serial.print("Umbral de Gas actualizado: ");
+    Serial.println(umbgas);
+
+    Serial.print("Umbral de Presion actualizado: ");
+    Serial.println(umbpres);
+
+    Serial.print("Umbral de Luz actualizado: ");
+    Serial.println(umbluz);
+
+    umbral_eeprom.end();
+  }
+
+  if (lecb1 == 0)
+  {
+    bloqb1 = 0;
+  }
+
+//***FIN EEPROM***
+
+}
