@@ -1,7 +1,3 @@
-//Milsztain, Macia, Colombres, Reboratti
-
-//PRUEBA TEMPERATURA
-
 #include <Wire.h>
 #include <Adafruit_AHTX0.h>
 
@@ -13,22 +9,32 @@ void setup()
 {
   Serial.begin(115200);
 
-  //inicio del AHT
-  aht.begin()
+  // Inicio del AHT
+  if (!aht.begin()) { 
+    Serial.println("No se detectó AHTX0. Revisar conexiones.");
+    while (1); // Detener ejecución si falla
+  }
+  Serial.println("AHTX0 detectado correctamente");
 }
 
 void loop() 
 {
-  //Sensor Temp
+  // Variables para eventos
   sensors_event_t humidity, temp;
   aht.getEvent(&humidity, &temp);
   
-  lectemp = temp.temperature; //Lectura Temp (C°)
-  lechum = humidity.relative_humidity; //Lectura Humedad (%)
-  
+  // Lecturas
+  lectemp = temp.temperature;           // Temperatura en °C
+  lechum = humidity.relative_humidity;  // Humedad en %
+
+  // Mostrar en consola
   Serial.print("Lectura temp: ");
-  Serial.println(lectemp);
+  Serial.print(lectemp);
+  Serial.println(" °C");
 
   Serial.print("Lectura hum: ");
-  Serial.println(lechum);
+  Serial.print(lechum);
+  Serial.println(" %");
+
+  delay(1000); // Esperar 1 segundo entre lecturas
 }
