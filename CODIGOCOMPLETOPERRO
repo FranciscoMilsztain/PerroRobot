@@ -6,6 +6,12 @@
 #include <Adafruit_BMP280.h>
 #include <Adafruit_AHTX0.h>
 #include <Preferences.h>
+#include <ESP32Time.h>
+#include <WiFi.h>
+#include "time.h"
+#include <WiFiClientSecure.h>
+#include <UniversalTelegramBot.h>
+#include <ArduinoJson.h>
 
 
 //***ESTADOS***
@@ -24,6 +30,7 @@ int ESTADO = 1;
 #define UMBRAL_PRES_SUPERADO 11
 #define UMBRAL_LUZ_SUPERADO 12
 #define UMBRAL_GAS_SUPERADO 13
+#define CAMBIO_LECTURA 14
 
 //***FIN ESTADOS***
 
@@ -60,6 +67,9 @@ LiquidCrystal_I2C lcd_1(0x27, 16, 2);
 
 //***SENSORES***
 
+  int lectura_seleccionada = 1;
+  int umbral_seleccionado = 1;
+
   //Sensor Gas
   int pingas = 34;
   int lecgas;
@@ -85,39 +95,93 @@ LiquidCrystal_I2C lcd_1(0x27, 16, 2);
 //***FIN SENSORES***
 
 
-//***VARIABLES TIEMPO***
+//***EEPROM***
 
-int timer;
-int timer1000;
+Preferences umbral_eeprom;
+
+//***FIN EEPROM***
+
+
+//***WIFI***
+
+const char* ssid = "MECA-IoT";
+const char* password = "IoT$2025";
+const char* ntpServer = "pool.ntp.org";
+
+//***FIN WIFI***
+
+
+//***VARIABLES Y AJUSTES DE TIEMPO***
+
+unsigned long timer;
+unsigned long timer1000;
+
+int segs = 0;
+int mins = 0;
+int horas = 0;
+int GMT = -3;
+
+int long gmtOffset_sec = -10800;
+const int daylightOffset_sec = 0;
 
 //***FIN VARIABLES TIEMPO***
 
-//***EEPROM***
 
-  Preferences umbral_eeprom;
+//***TELEGRAM***
 
-//***FIN EEPROM***
+int bloqtelegram;
+
+//Token del bot
+#define BOTtoken "8373807622:AAFkzYRff0xraeKJD-SOddWeex2Xt4lFyYs"
+//ID del chat con el bot
+#define CHAT_ID "7601536385"
+
+WiFiClientSecure client;
+UniversalTelegramBot bot(BOTtoken, client);
+
+//***FIN TELEGRAM***
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void setup() 
 {
   Serial.begin(115200);
+  Serial.println("Programa iniciado");
+  Serial.println("");
+
+//***WIFI***
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+  client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
+  while (WiFi.status() != WL_CONNECTED) 
+  {
+    delay(500);
+    Serial.print("-"); //Se manda indefinidamente si no se logra establecer la conexión al wifi
+  }
+  Serial.println("WiFi conectado"); //Se manda al verificar que se logró establecer la conexión al wifi
+
+  //El BOT manda un mensaje a telegram para anunciar que se inició
+  bot.sendMessage(CHAT_ID, "BOT iniciado", "");
+  
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+
+//***FIN WIFI***
+
 
 //***BOTONES***
 
-pinMode(BOT1, INPUT);
-pinMode(BOT2, INPUT);
-pinMode(BOT3, INPUT);
-pinMode(BOT4, INPUT);
-pinMode(BOT5, INPUT);
+  pinMode(BOT1, INPUT);
+  pinMode(BOT2, INPUT);
+  pinMode(BOT3, INPUT);
+  pinMode(BOT4, INPUT);
+  pinMode(BOT5, INPUT);
 
 //***FIN BOTONES***
 
 
 //***SENSORES***
-
-  //Sensor Gas no necesita setup
 
   //Sensor Presion
   bmp.begin(0x76);
@@ -127,6 +191,8 @@ pinMode(BOT5, INPUT);
 
   //Sensor Temp
   aht.begin()
+
+  //Sensor Gas no necesita setup
   
 //***FIN SENSORES***
 
@@ -135,7 +201,6 @@ pinMode(BOT5, INPUT);
 
   lcd_1.init();
   lcd_1.backlight();
-  lcd_1.setCursor(0, 0);
 
 //***FIN DISPLAY***
 
@@ -171,30 +236,120 @@ pinMode(BOT5, INPUT);
 
 void loop() 
 {
-
-  //***SETEO MILLIS***
-
   timer = millis();
 
-  //***FIN MILLIS***
+  recibirtiempo();
+
+
+  //***BOTONES***
+
+  lecb1 = digitalRead(BOT1);
+  lecb2 = digitalRead(BOT2);
+  lecb3 = digitalRead(BOT3);
+  lecb4 = digitalRead(BOT4);
+  lecb5 = digitalRead(BOT5);
+
+//***FIN BOTONES***
+
 
   switch (ESTADO)
   {
     case PANTALLA1:
 
+//***DISPLAY***
 
+    lcd_1.setCursor(0, 0);
+
+    if (lectura_seleccionada == 1)
+    {
+      lcd_1.print("TEMP:");
+      lcd_1.print(lectemp);
+    }
+
+    if (lectura_seleccionada == 2)
+    {
+      lcd_1.print("LUZ:");
+      lcd_1.print(lecluz);
+    }
+
+    if (lectura_seleccionada == 3)
+    {
+      lcd_1.print("PRES:");
+      lcd_1.print(lecpres);
+    }
+
+    if (lectura_seleccionada == 4)
+    {
+      lcd_1.print("GAS:");
+      lcd_1.print(lecgas);
+    }
+
+//***FIN DISPLAY***
+  
+//***SENSORES***
+
+    //Sensor Gas
+    lecgas = analogRead(pingas); //Lectura gas
+
+    //Sensor Presion
+    lecpres = bmp.readPressure(); //Se lee la presion en Pascales
+
+    //Sensor Luz
+    lecluz = analogRead(pinluz); //Lectura Luz
+    
+    //Sensor Temp
+    sensors_event_t humidity, temp;
+    aht.getEvent(&humidity, &temp);
+    
+    lectemp = temp.temperature; //Lectura Temp (C°)
+    
+  //***FIN SENSORES***
+
+    if (lecb1 == 1)
+    {
+      ESTADO = CAMBIO_LECTURA;
+    }
+
+    lcd_1.clear();
 
     break;
 
     case PANTALLA2:
 
+    lcd_1.setCursor(0, 0);
+
+    if ()
     
-    
+    break;
+
+    case CAMBIO_LECTURA: //CAMBIAR ESTO PARA AGREGAR QUE TAMBIEN SE HAGA DISPLAY DE LA HORA
+
+    if (lecb1 == 0)
+    {
+      lectura_seleccionada = lectura_seleccionada + 1;
+      lcd_1.clear();
+
+      if (lectura_seleccionada > 4) 
+      {
+        lectura_seleccionada = 1;
+      }
+
+      ESTADO = PANTALLA1;
+    }
+
+    if(lecb2 == 1)
+    {
+      ESTADO = FASE1;
+    }
+
     break;
 
     case FASE1:
 
-
+    if (lecb1 == 0 && lecb2 == 0)
+    {
+      ESTADO = PANTALLA2;
+    }
 
     break;
 
@@ -260,50 +415,6 @@ void loop()
   }
 
 
-
-//***BOTONES***
-
-  lecb1 = digitalRead(BOT1);
-  lecb2 = digitalRead(BOT2);
-  lecb3 = digitalRead(BOT3);
-  lecb4 = digitalRead(BOT4);
-  lecb5 = digitalRead(BOT5);
-
-//***FIN BOTONES***
-
-
-//***SENSORES***
-
-  //Sensor Gas
-  lecgas = analogRead(pingas); //Lectura gas
-
-  Serial.print("Lectura gas: ");
-  Serial.println(valGas);
-
-  //Sensor Presion
-  lecpres = bmp.readPressure(); //Se lee la presion en Pascales
-
-  Serial.print("Lectura presion: ");
-  Serial.println(lecpres);
-
-  //Sensor Luz
-  lecluz = analogRead(pinluz); //Lectura Luz
-  
-  Serial.print("Lectura luz: ");
-  Serial.println(lecluz);
-
-  //Sensor Temp
-  sensors_event_t humidity, temp;
-  aht.getEvent(&humidity, &temp);
-  
-  lectemp = temp.temperature; //Lectura Temp (C°)
-  
-  Serial.print("Lectura temp: ");
-  Serial.println(lectemp);
-  
-//***FIN SENSORES***
-
-
 //***EEPROM***
 
   if (lecb1 == 1 && bloqb1 == 0)
@@ -338,5 +449,22 @@ void loop()
   }
 
 //***FIN EEPROM***
+}
 
+void recibirtiempo()
+{
+  struct tm timeinfo; //Se llama a la hora online
+  
+  if (!getLocalTime(&timeinfo)) {
+    Serial.println("No se pudo leer la hora");
+    return;
+  }
+
+  //Los valores recibidos se asignan a sus variables
+  segs = timeinfo.tm_sec;
+  mins = timeinfo.tm_min;
+  horas = timeinfo.tm_hour;
+
+  // Mostrar
+  Serial.printf("Hora actual: %02d:%02d:%02d\n", horas, mins, segs);
 }
