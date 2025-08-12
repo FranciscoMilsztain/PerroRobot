@@ -7,6 +7,7 @@
 
 Adafruit_AHTX0 aht;
 float lectemp;
+float lechum;
 
 void setup() 
 {
@@ -23,7 +24,11 @@ void loop()
   aht.getEvent(&humidity, &temp);
   
   lectemp = temp.temperature; //Lectura Temp (C°)
+  lechum = humidity.relative_humidity; //Lectura Humedad (%)
   
   Serial.print("Lectura temp: ");
   Serial.println(lectemp);
+
+  Serial.print("Lectura hum: ");
+  Serial.println(lechum);
 }
