@@ -3,7 +3,6 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <Adafruit_Sensor.h>
-#include <Adafruit_BMP280.h>
 #include <Adafruit_AHTX0.h>
 #include <Preferences.h>
 #include <ESP32Time.h>
@@ -71,26 +70,23 @@ LiquidCrystal_I2C lcd_1(0x27, 16, 2);
   int umbral_seleccionado = 1;
 
   //Sensor Gas
-  int pingas = 34;
-  int lecgas;
-  int umbgas;
-
-  //Sensor Presion
-  Adafruit_BMP280 bmp;
-
-  float lecpres;
-  float umbpres;
+  float pingas = 34;
+  float lecgas;
+  float umbgas;
 
   //Sensor Luz
-  int pinluz = 0; //CAMBIAR ESTE PIN POR UNO ANALÓGICO
-  int lecluz;
-  int umbluz;
+  float pinluz = 0; //CAMBIAR ESTE PIN POR UNO ANALÓGICO
+  float lecluz;
+  float umbluz;
 
-  //Sensor Temp
+  //Sensor Temp y humedad
   Adafruit_AHTX0 aht;
 
   float lectemp;
   float umbtemp;
+
+  float lechum;
+  float umbhum;
 
 //***FIN SENSORES***
 
@@ -141,7 +137,6 @@ UniversalTelegramBot bot(BOTtoken, client);
 
 //***FIN TELEGRAM***
 
-
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void setup() 
@@ -183,16 +178,16 @@ void setup()
 
 //***SENSORES***
 
-  //Sensor Presion
-  bmp.begin(0x76);
-
   //Sensor Luz
   pinMode(pinluz, INPUT);
 
   //Sensor Temp
-  aht.begin()
-
-  //Sensor Gas no necesita setup
+  if (!aht.begin()) 
+  {
+    Serial.println("No se detectó AHTX0. Revisar conexiones.");
+    while (1); // Detener ejecución si falla
+  }
+  Serial.println("AHTX0 detectado correctamente");
   
 //***FIN SENSORES***
 
@@ -211,7 +206,7 @@ void setup()
 
   umbtemp = umbral_eeprom.getFloat("umbtemp", 24.0); //EEPROM TEMPERATURA
   umbgas  = umbral_eeprom.getFloat("umbgas", 24.0);  //EEPROM GAS
-  umbpres = umbral_eeprom.getFloat("umbpres", 24.0); //EEPROM PRESION
+  umbhum  = umbral_eeprom.getFloat("umbhum", 24.0);  //EEPROM LUZ  
   umbluz  = umbral_eeprom.getFloat("umbluz", 24.0);  //EEPROM LUZ
 
   umbral_eeprom.end();
@@ -222,10 +217,10 @@ void setup()
 
   Serial.print("Gas: "); 
   Serial.println(umbgas);
-  
-  Serial.print("Presion: "); 
-  Serial.println(umbpres);
-  
+
+  Serial.print("Humedad: ");
+  Serial.print(umbhum);
+
   Serial.print("Luz: "); 
   Serial.println(umbluz);
 
@@ -274,8 +269,8 @@ void loop()
 
     if (lectura_seleccionada == 3)
     {
-      lcd_1.print("PRES:");
-      lcd_1.print(lecpres);
+      lcd_1.print("HUMEDAD:");
+      lcd_1.print(lechum);
     }
 
     if (lectura_seleccionada == 4)
@@ -291,9 +286,6 @@ void loop()
     //Sensor Gas
     lecgas = analogRead(pingas); //Lectura gas
 
-    //Sensor Presion
-    lecpres = bmp.readPressure(); //Se lee la presion en Pascales
-
     //Sensor Luz
     lecluz = analogRead(pinluz); //Lectura Luz
     
@@ -301,7 +293,8 @@ void loop()
     sensors_event_t humidity, temp;
     aht.getEvent(&humidity, &temp);
     
-    lectemp = temp.temperature; //Lectura Temp (C°)
+    lectemp = temp.temperature; //Lectura Temp en C°
+    lechum = humidity.relative_humidity; //Lectura de humedad en %
     
   //***FIN SENSORES***
 
@@ -425,7 +418,7 @@ void loop()
 
     umbral_eeprom.putFloat("umbtemp", umbtemp); //Actualizar Temperatura
     umbral_eeprom.putFloat("umbgas", umbgas);   //Actualizar Gas
-    umbral_eeprom.putFloat("umbpres", umbpres); //Actualizar Presion
+    umbral_eeprom.putFloat("umbhum", umbhum); //Actualizar Presion
     umbral_eeprom.putFloat("umbluz", umbluz);   //Actualizar Luz
 
     Serial.print("Umbral de Temperatura actualizado: ");
@@ -434,8 +427,8 @@ void loop()
     Serial.print("Umbral de Gas actualizado: ");
     Serial.println(umbgas);
 
-    Serial.print("Umbral de Presion actualizado: ");
-    Serial.println(umbpres);
+    Serial.print("Umbral de Humedad actualizado: ");
+    Serial.println(umbhum);
 
     Serial.print("Umbral de Luz actualizado: ");
     Serial.println(umbluz);
