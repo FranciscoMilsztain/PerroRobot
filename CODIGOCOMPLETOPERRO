@@ -36,11 +36,11 @@ int ESTADO = 1;
 
 //***BOTONES***
 
-  #define BOT1 1
-  #define BOT2 2
-  #define BOT3 3
-  #define BOT4 4
-  #define BOT5 5
+  #define BOT1 25
+  #define BOT2 33
+  #define BOT3 32
+  #define BOT4 27
+  #define BOT5 16
 
   int lecb1;
   int lecb2;
@@ -232,11 +232,9 @@ void setup()
 void loop() 
 {
   timer = millis();
-
   recibirtiempo();
 
-
-  //***BOTONES***
+//***BOTONES***
 
   lecb1 = digitalRead(BOT1);
   lecb2 = digitalRead(BOT2);
@@ -245,7 +243,6 @@ void loop()
   lecb5 = digitalRead(BOT5);
 
 //***FIN BOTONES***
-
 
   switch (ESTADO)
   {
@@ -296,7 +293,7 @@ void loop()
     lectemp = temp.temperature; //Lectura Temp en C°
     lechum = humidity.relative_humidity; //Lectura de humedad en %
     
-  //***FIN SENSORES***
+//***FIN SENSORES***
 
     if (lecb1 == 1)
     {
@@ -309,10 +306,79 @@ void loop()
 
     case PANTALLA2:
 
-    lcd_1.setCursor(0, 0);
+//***DISPLAY***
 
-    if ()
+    lcd_1.setCursor(0, 0);
     
+    if (umbral_seleccionado == 1)
+    {
+      lcd_1.print("TEMP:");
+      lcd_1.print(umbtemp);
+
+      lcd_1.setCursor(0, 1);
+      lcd_1.print("GMT:");
+      lcd_1.print(GMT);
+    }
+
+    if (umbral_seleccionado == 2)
+    {
+      lcd_1.print("LUZ:");
+      lcd_1.print(umbluz);
+
+      lcd_1.setCursor(0, 1);
+      lcd_1.print("GMT:");
+      lcd_1.print(GMT);
+    }
+
+    if (umbral_seleccionado == 3)
+    {
+      lcd_1.print("HUMEDAD:");
+      lcd_1.print(umbhum);
+
+      lcd_1.setCursor(0, 1);
+      lcd_1.print("GMT:");
+      lcd_1.print(GMT);
+    }
+
+    if (umbral_seleccionado == 4)
+    {
+      lcd_1.print("GAS:");
+      lcd_1.print(umbgas);
+
+      lcd_1.setCursor(0, 1);
+      lcd_1.print("GMT:");
+      lcd_1.print(GMT);
+    }
+
+//***FIN DISPLAY***
+
+    if (lecb1 == 1)
+    {
+      ESTADO = SUMAR_GMT; 
+    }
+
+    if (lecb2 == 1)
+    {
+      ESTADO = RESTAR_GMT;
+    }
+        
+    if (lecb3 == 1)
+    {
+      ESTADO = CAMBIO_UMBRAL;
+    }
+        
+    if (lecb4 == 1)
+    {
+      ESTADO = SUMAR_UMBRAL;
+    }
+   
+    if (lecb5 == 1)
+    {
+      ESTADO = RESTAR_UMBRAL;
+    }
+    
+    lcd_1.clear();
+
     break;
 
     case CAMBIO_LECTURA: //CAMBIAR ESTO PARA AGREGAR QUE TAMBIEN SE HAGA DISPLAY DE LA HORA
@@ -348,19 +414,60 @@ void loop()
 
     case FASE2:
 
+    if (lecb1 == 0 && lecg2 == 0)
+    {
+      ESTADO = PANTALLA1;
 
+
+//***EEPROM***
+
+      umbral_eeprom.begin("umbrales", false);
+
+      umbral_eeprom.putFloat("umbtemp", umbtemp); //Actualizar Temperatura
+      umbral_eeprom.putFloat("umbgas", umbgas);   //Actualizar Gas
+      umbral_eeprom.putFloat("umbhum", umbhum);   //Actualizar Presion
+      umbral_eeprom.putFloat("umbluz", umbluz);   //Actualizar Luz
+
+      Serial.print("Umbral de Temperatura actualizado: ");
+      Serial.println(umbtemp);
+
+      Serial.print("Umbral de Gas actualizado: ");
+      Serial.println(umbgas);
+
+      Serial.print("Umbral de Humedad actualizado: ");
+      Serial.println(umbhum);
+
+      Serial.print("Umbral de Luz actualizado: ");
+      Serial.println(umbluz);
+
+      umbral_eeprom.end();
+
+//***FIN EEPROM***
+
+    }    
 
     break;
 
     case CAMBIO_UMBRAL:
 
+    if (lecb3 == 0)
+    {
+      umbral_seleccionado = umbral_seleccionado + 1;
+      lcd_1.clear();
 
+      if (umbral_seleccionado > 4) 
+      {
+        umbral_seleccionado = 1;
+      }
+
+      ESTADO = PANTALLA2;
+    }
 
     break;
 
     case SUMAR_UMBRAL:
 
-
+    //HACER ESTOS DOS ESTADOS ACA TE QUEDASTE BRO
 
     break;
 
@@ -372,13 +479,47 @@ void loop()
 
     case SUMAR_GMT:
 
+    if (lecb1 == 0)
+    {
+      GMT = GMT + 1;
 
+      if (GMT > 12)
+      {
+        GMT = 12;
+      }
+
+      gmtOffset_sec = GMT * 3600;
+
+      ESTADO = PANTALLA2;
+    }
+
+    if (lecb2 == 1)
+    {
+      ESTADO = FASE2;
+    }
 
     break;
 
     case RESTAR_GMT:
 
+    if (lecb2 == 0)
+    {
+      GMT = GMT - 1;
 
+      if (GMT < -12)
+      {
+        GMT = -12;
+      }
+
+      gmtOffset_sec = GMT * 3600;
+
+      ESTADO = PANTALLA2;
+    }
+
+    if (lecb1 == 1)
+    {
+      ESTADO = FASE2;
+    }
 
     break;
 
@@ -406,42 +547,6 @@ void loop()
 
     break;
   }
-
-
-//***EEPROM***
-
-  if (lecb1 == 1 && bloqb1 == 0)
-  {
-    bloqb1 = 1;
-    
-    umbral_eeprom.begin("umbrales", false);
-
-    umbral_eeprom.putFloat("umbtemp", umbtemp); //Actualizar Temperatura
-    umbral_eeprom.putFloat("umbgas", umbgas);   //Actualizar Gas
-    umbral_eeprom.putFloat("umbhum", umbhum); //Actualizar Presion
-    umbral_eeprom.putFloat("umbluz", umbluz);   //Actualizar Luz
-
-    Serial.print("Umbral de Temperatura actualizado: ");
-    Serial.println(umbtemp);
-
-    Serial.print("Umbral de Gas actualizado: ");
-    Serial.println(umbgas);
-
-    Serial.print("Umbral de Humedad actualizado: ");
-    Serial.println(umbhum);
-
-    Serial.print("Umbral de Luz actualizado: ");
-    Serial.println(umbluz);
-
-    umbral_eeprom.end();
-  }
-
-  if (lecb1 == 0)
-  {
-    bloqb1 = 0;
-  }
-
-//***FIN EEPROM***
 }
 
 void recibirtiempo()
