@@ -88,6 +88,13 @@ LiquidCrystal_I2C lcd_1(0x27, 16, 2);
   float lechum;
   float umbhum;
 
+
+  //MAPEOS:
+  float maptemp; //NO HAY MAPEO DE TEMP (Se mantiene en C°)
+  float mapgas; 
+  float mapluz; 
+  float maphum; 
+
 //***FIN SENSORES***
 
 
@@ -261,19 +268,19 @@ void loop()
     if (lectura_seleccionada == 2)
     {
       lcd_1.print("LUZ:");
-      lcd_1.print(lecluz);
+      lcd_1.print(mapluz);
     }
 
     if (lectura_seleccionada == 3)
     {
       lcd_1.print("HUMEDAD:");
-      lcd_1.print(lechum);
+      lcd_1.print(maphum);
     }
 
     if (lectura_seleccionada == 4)
     {
       lcd_1.print("GAS:");
-      lcd_1.print(lecgas);
+      lcd_1.print(mapgas);
     }
 
 //***FIN DISPLAY***
@@ -292,6 +299,34 @@ void loop()
     
     lectemp = temp.temperature; //Lectura Temp en C°
     lechum = humidity.relative_humidity; //Lectura de humedad en %
+
+    //MAPEO
+    mapgas = map(lecgas, 0, 4095, 0, 100);
+    mapluz = map(lecluz, 0, 4095, 0, 100);
+    maphum = map(lechum, 0, 4095, 0, 100);
+
+    //SI SE SUPERAN LOS UMBRALES:
+
+    if (lectemp > umbtemp)
+    {
+      ESTADO = UMBRAL_TEMP_SUPERADO;
+    }
+
+    if (mapgas > umbgas)
+    {
+      ESTADO = UMBRAL_GAS_SUPERADO;
+    }
+
+    if (mapluz > umbluz)
+    {
+      ESTADO = UMBRAL_LUZ_SUPERADO;
+    }
+
+    if (maphum > umbhum)
+    {
+      ESTADO = UMBRAL_HUM_SUPERADO;
+    }
+
     
 //***FIN SENSORES***
 
@@ -467,13 +502,57 @@ void loop()
 
     case SUMAR_UMBRAL:
 
-    //HACER ESTOS DOS ESTADOS ACA TE QUEDASTE BRO
+    if (umbral_seleccionado == 1 && lecb4 == 0)
+    {
+      umbtemp = umbtemp + 1;
+      ESTADO = PANTALLA2;
+    }
+
+    if (umbral_seleccionado == 1 && lecb4 == 0)
+    {
+      umbluz = umbluz + 1;
+      ESTADO = PANTALLA2;
+    }
+
+    if (umbral_seleccionado == 1 && lecb4 == 0)
+    {
+      umbhum = umbhum + 1;
+      ESTADO = PANTALLA2;
+    }
+
+    if (umbral_seleccionado == 1 && lecb4 == 0)
+    {
+      umbgas = umbgas + 1;
+      ESTADO = PANTALLA2;
+    }
 
     break;
 
     case RESTAR_UMBRAL:
 
+    if (umbral_seleccionado == 1 && lecb5 == 0)
+    {
+      umbtemp = umbtemp - 1;
+      ESTADO = PANTALLA2;
+    }
 
+    if (umbral_seleccionado == 1 && lecb5 == 0)
+    {
+      umbluz = umbluz - 1;
+      ESTADO = PANTALLA2;
+    }
+
+    if (umbral_seleccionado == 1 && lecb5 == 0)
+    {
+      umbhum = umbhum - 1;
+      ESTADO = PANTALLA2;
+    }
+
+    if (umbral_seleccionado == 1 && lecb5 == 0)
+    {
+      umbgas = umbgas - 1;
+      ESTADO = PANTALLA2;
+    }
 
     break;
 
