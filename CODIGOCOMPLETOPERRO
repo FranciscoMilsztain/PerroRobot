@@ -70,12 +70,12 @@ LiquidCrystal_I2C lcd_1(0x27, 16, 2);
   int umbral_seleccionado = 1;
 
   //Sensor Gas
-  float pingas = 34;
+  int pingas = 34;
   float lecgas;
   float umbgas;
 
   //Sensor Luz
-  float pinluz = 0; //CAMBIAR ESTE PIN POR UNO ANALÓGICO
+  int pinluz = 0; //CAMBIAR ESTE PIN POR UNO ANALÓGICO
   float lecluz;
   float umbluz;
 
@@ -170,7 +170,7 @@ void setup()
 
   //El BOT manda un mensaje a telegram para anunciar que se inició
   bot.sendMessage(CHAT_ID, "BOT iniciado", "");
-  bot.sendMessage(CHAT_ID), "SE PUEDE PEDIR: TEMP ; GAS ; HUM ; LUZ", "");
+  bot.sendMessage(CHAT_ID, "SE PUEDE PEDIR: TEMP ; GAS ; HUM ; LUZ", "");
   
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
@@ -308,7 +308,8 @@ void loop()
     //MAPEO
     mapgas = map(lecgas, 0, 4095, 0, 100);
     mapluz = map(lecluz, 0, 4095, 0, 100);
-    maphum = map(lechum, 0, 4095, 0, 100);
+    maphum = lechum; //NO HAY MAPEO
+    //Temperatura tampoco tiene mapeo
 
   //SI SE SUPERAN LOS UMBRALES: (TELEGRAM)
 
@@ -399,8 +400,6 @@ void loop()
       ESTADO = CAMBIO_LECTURA;
     }
 
-    lcd_1.clear();
-
     break;
 
 ///////////////////////CAMBIO A PANTALLA2
@@ -478,8 +477,6 @@ void loop()
       ESTADO = RESTAR_UMBRAL;
     }
     
-    lcd_1.clear();
-
     break;
 
     case CAMBIO_LECTURA: //CAMBIAR ESTO PARA AGREGAR QUE TAMBIEN SE HAGA DISPLAY DE LA HORA
@@ -499,6 +496,7 @@ void loop()
 
     if(lecb2 == 1)
     {
+      lcd_1.clear();
       ESTADO = FASE1;
     }
 
@@ -508,6 +506,7 @@ void loop()
 
     if (lecb1 == 0 && lecb2 == 0)
     {
+      lcd_1.clear();
       ESTADO = PANTALLA2;
     }
 
@@ -515,8 +514,9 @@ void loop()
 
     case FASE2:
 
-    if (lecb1 == 0 && lecg2 == 0)
+    if (lecb1 == 0 && lecb2 == 0)
     {
+      lcd_1.clear();
       ESTADO = PANTALLA1;
 
 
@@ -571,24 +571,28 @@ void loop()
     if (umbral_seleccionado == 1 && lecb4 == 0)
     {
       umbtemp = umbtemp + 1;
+      lcd_1.clear();
       ESTADO = PANTALLA2;
     }
 
-    if (umbral_seleccionado == 1 && lecb4 == 0)
+    if (umbral_seleccionado == 2 && lecb4 == 0)
     {
       umbluz = umbluz + 1;
+      lcd_1.clear();
       ESTADO = PANTALLA2;
     }
 
-    if (umbral_seleccionado == 1 && lecb4 == 0)
+    if (umbral_seleccionado == 3 && lecb4 == 0)
     {
       umbhum = umbhum + 1;
+      lcd_1.clear();
       ESTADO = PANTALLA2;
     }
 
-    if (umbral_seleccionado == 1 && lecb4 == 0)
+    if (umbral_seleccionado == 4 && lecb4 == 0)
     {
       umbgas = umbgas + 1;
+      lcd_1.clear();
       ESTADO = PANTALLA2;
     }
 
@@ -599,24 +603,28 @@ void loop()
     if (umbral_seleccionado == 1 && lecb5 == 0)
     {
       umbtemp = umbtemp - 1;
+      lcd_1.clear();
       ESTADO = PANTALLA2;
     }
 
     if (umbral_seleccionado == 1 && lecb5 == 0)
     {
       umbluz = umbluz - 1;
+      lcd_1.clear();
       ESTADO = PANTALLA2;
     }
 
     if (umbral_seleccionado == 1 && lecb5 == 0)
     {
       umbhum = umbhum - 1;
+      lcd_1.clear();
       ESTADO = PANTALLA2;
     }
 
     if (umbral_seleccionado == 1 && lecb5 == 0)
     {
       umbgas = umbgas - 1;
+      lcd_1.clear();
       ESTADO = PANTALLA2;
     }
 
@@ -635,6 +643,7 @@ void loop()
 
       gmtOffset_sec = GMT * 3600;
 
+      lcd_1.clear();
       ESTADO = PANTALLA2;
     }
 
@@ -658,6 +667,7 @@ void loop()
 
       gmtOffset_sec = GMT * 3600;
 
+      lcd_1.clear();
       ESTADO = PANTALLA2;
     }
 
