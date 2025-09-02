@@ -225,7 +225,7 @@ void setup()
 
   umbtemp = umbral_eeprom.getFloat("umbtemp", 24.0); //EEPROM TEMPERATURA
   umbgas  = umbral_eeprom.getFloat("umbgas", 24.0);  //EEPROM GAS
-  umbhum  = umbral_eeprom.getFloat("umbhum", 24.0);  //EEPROM LUZ  
+  umbhum  = umbral_eeprom.getFloat("umbhum", 24.0);  //EEPROM HUMEDAD
   umbluz  = umbral_eeprom.getFloat("umbluz", 24.0);  //EEPROM LUZ
 
   umbral_eeprom.end();
@@ -251,7 +251,7 @@ void setup()
 void loop() 
 {
   timer = millis();
-  recibirtiempo();
+
 
 //***BOTONES***
 
@@ -269,7 +269,7 @@ void loop()
     case PANTALLA1:
 
   //RECIBIR TIEMPO
-  unsigned long timestamp = recibirTiempo();
+  unsigned long timestamp = recibirTiempoTimestamp();
 
 //***DISPLAY***
 
@@ -401,7 +401,7 @@ void loop()
 
       //IMPRIMIR TIEMPO
       Serial.print("TIEMPO ACTUAL: ");
-      Serial.println(recibirTiempo());
+      Serial.println(recibirTiempoString());
       timer1000 = timer + 1000;
     }
 
@@ -620,21 +620,21 @@ void loop()
       ESTADO = PANTALLA2;
     }
 
-    if (umbral_seleccionado == 1 && lecb5 == 0)
+    if (umbral_seleccionado == 2 && lecb5 == 0)
     {
       umbluz = umbluz - 1;
       lcd_1.clear();
       ESTADO = PANTALLA2;
     }
 
-    if (umbral_seleccionado == 1 && lecb5 == 0)
+    if (umbral_seleccionado == 3 && lecb5 == 0)
     {
       umbhum = umbhum - 1;
       lcd_1.clear();
       ESTADO = PANTALLA2;
     }
 
-    if (umbral_seleccionado == 1 && lecb5 == 0)
+    if (umbral_seleccionado == 4 && lecb5 == 0)
     {
       umbgas = umbgas - 1;
       lcd_1.clear();
@@ -693,7 +693,7 @@ void loop()
   }
 }
 
-unsigned long recibirTiempo() 
+unsigned long recibirTiempoTimestamp() 
 {
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) 
@@ -701,10 +701,10 @@ unsigned long recibirTiempo()
     Serial.println("Error al obtener hora desde NTP");
     return 0;
   }
-  return mktime(&timeinfo);  // Epoch en segundos
+  return mktime(&timeinfo);
 }
 
-String recibirTiempo() {
+String recibirTiempoString() {
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
     return "Error";
