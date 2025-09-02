@@ -173,6 +173,13 @@ void setup()
   bot.sendMessage(CHAT_ID, "SE PUEDE PEDIR: TEMP ; GAS ; HUM ; LUZ", "");
   
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  struct tm timeinfo;
+  if (getLocalTime(&timeinfo)) 
+  {
+    Serial.println("Hora sincronizada");
+  } else {
+    Serial.println("Error al sincronizar hora");
+  }
 
 //***FIN WIFI***
 
@@ -258,7 +265,11 @@ void loop()
 
   switch (ESTADO)
   {
+    //////////////////////PANTALLA1//////////////////////
     case PANTALLA1:
+
+  //RECIBIR TIEMPO
+  unsigned long timestamp = recibirTiempo();
 
 //***DISPLAY***
 
@@ -388,6 +399,9 @@ void loop()
         }
       }
 
+      //IMPRIMIR TIEMPO
+      Serial.print("TIEMPO ACTUAL: ");
+      Serial.println(recibirTiempo());
       timer1000 = timer + 1000;
     }
 
@@ -402,8 +416,7 @@ void loop()
 
     break;
 
-///////////////////////CAMBIO A PANTALLA2
-
+//////////////////////PANTALLA2//////////////////////
     case PANTALLA2:
 
 //***DISPLAY***
@@ -680,20 +693,23 @@ void loop()
   }
 }
 
-void recibirtiempo()
+unsigned long recibirTiempo() 
 {
-  struct tm timeinfo; //Se llama a la hora online
-  
-  if (!getLocalTime(&timeinfo)) {
-    Serial.println("No se pudo leer la hora");
-    return;
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) 
+  {
+    Serial.println("Error al obtener hora desde NTP");
+    return 0;
   }
+  return mktime(&timeinfo);  // Epoch en segundos
+}
 
-  //Los valores recibidos se asignan a sus variables
-  segs = timeinfo.tm_sec;
-  mins = timeinfo.tm_min;
-  horas = timeinfo.tm_hour;
-
-  // Mostrar
-  Serial.printf("Hora actual: %02d:%02d:%02d\n", horas, mins, segs);
+String recibirTiempo() {
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    return "Error";
+  }
+  char buffer[9];
+  sprintf(buffer, "%02d:%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+  return String(buffer);
 }
