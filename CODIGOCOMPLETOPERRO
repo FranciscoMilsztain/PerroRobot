@@ -25,10 +25,10 @@ int ESTADO = 1;
 #define RESTAR_UMBRAL 7
 #define SUMAR_GMT 8
 #define RESTAR_GMT 9
-#define UMBRAL_TEMP_SUPERADO 10
-#define UMBRAL_PRES_SUPERADO 11
-#define UMBRAL_LUZ_SUPERADO 12
-#define UMBRAL_GAS_SUPERADO 13
+#define UMBRAL_TEMP_SUPERADO 10 //NO SE USA
+#define UMBRAL_HUM_SUPERADO 11  //NO SE USA
+#define UMBRAL_LUZ_SUPERADO 12  //NO SE USA
+#define UMBRAL_GAS_SUPERADO 13  //NO SE USA
 #define CAMBIO_LECTURA 14
 
 //***FIN ESTADOS***
@@ -88,8 +88,7 @@ LiquidCrystal_I2C lcd_1(0x27, 16, 2);
   float lechum;
   float umbhum;
 
-
-  //MAPEOS:
+  //MAPEOS
   float maptemp; //NO HAY MAPEO DE TEMP (Se mantiene en C°)
   float mapgas; 
   float mapluz; 
@@ -99,6 +98,11 @@ LiquidCrystal_I2C lcd_1(0x27, 16, 2);
 
 
 //***EEPROM***
+
+int checkeotemp = 0;
+int checkeoluz = 0;
+int checkeogas = 0;
+int checkeohum = 0;
 
 Preferences umbral_eeprom;
 
@@ -305,26 +309,54 @@ void loop()
     mapluz = map(lecluz, 0, 4095, 0, 100);
     maphum = map(lechum, 0, 4095, 0, 100);
 
-    //SI SE SUPERAN LOS UMBRALES:
+  //SI SE SUPERAN LOS UMBRALES:
 
-    if (lectemp > umbtemp)
+    //TEMPERATURA
+    if (lectemp > umbtemp && checkeotemp == 0)
     {
-      ESTADO = UMBRAL_TEMP_SUPERADO;
+      //ESTADO = UMBRAL_TEMP_SUPERADO;
+      bot.sendMessage(CHAT_ID, "Se superó el umbral de temperatura, TEMP ACTUAL: " + String(lectemp), "");
+      checkeotemp = 1;
+    }
+    if (lectemp < umbtemp)
+    {
+      checkeotemp = 0;
     }
 
-    if (mapgas > umbgas)
+    //GAS
+    if (mapgas > umbgas && checkeogas == 0)
     {
-      ESTADO = UMBRAL_GAS_SUPERADO;
+      //ESTADO = UMBRAL_GAS_SUPERADO;
+      bot.sendMessage(CHAT_ID, "Se superó el umbral de gas, GAS ACTUAL: " + String(mapgas), "");
+      checkeogas = 1;
+    }
+    if (mapgas < umbgas)
+    {
+      checkeogas = 0;
     }
 
-    if (mapluz > umbluz)
+    //LUZ
+    if (mapluz > umbluz && checkeoluz == 0)
     {
-      ESTADO = UMBRAL_LUZ_SUPERADO;
+      //ESTADO = UMBRAL_LUZ_SUPERADO;
+      bot.sendMessage(CHAT_ID, "Se superó el umbral de luz, LUZ ACTUAL: " + String(mapluz), "");
+      checkeoluz = 1;
+    }
+    if (mapluz < umbluz)
+    {
+      checkeoluz = 0;
     }
 
-    if (maphum > umbhum)
+    //HUMEDAD
+    if (maphum > umbhum && checkeohum == 0)
     {
-      ESTADO = UMBRAL_HUM_SUPERADO;
+      //ESTADO = UMBRAL_HUM_SUPERADO;
+      bot.sendMessage(CHAT_ID, "Se superó el umbral de humedad, HUMEDAD ACTUAL: " + String(maphum), "");
+      checkeohum = 1;
+    }
+    if (maphum < umbhum)
+    {
+      checkeohum = 0;
     }
 
     
@@ -460,7 +492,7 @@ void loop()
 
       umbral_eeprom.putFloat("umbtemp", umbtemp); //Actualizar Temperatura
       umbral_eeprom.putFloat("umbgas", umbgas);   //Actualizar Gas
-      umbral_eeprom.putFloat("umbhum", umbhum);   //Actualizar Presion
+      umbral_eeprom.putFloat("umbhum", umbhum);   //Actualizar Humedad
       umbral_eeprom.putFloat("umbluz", umbluz);   //Actualizar Luz
 
       Serial.print("Umbral de Temperatura actualizado: ");
@@ -599,30 +631,6 @@ void loop()
     {
       ESTADO = FASE2;
     }
-
-    break;
-
-    case UMBRAL_TEMP_SUPERADO:
-
-
-
-    break;
-
-    case UMBRAL_PRES_SUPERADO:
-
-
-
-    break;
-
-    case UMBRAL_LUZ_SUPERADO:
-
-
-
-    break;
-
-    case UMBRAL_GAS_SUPERADO:
-
-
 
     break;
   }
