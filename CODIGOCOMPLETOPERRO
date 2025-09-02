@@ -170,6 +170,7 @@ void setup()
 
   //El BOT manda un mensaje a telegram para anunciar que se inició
   bot.sendMessage(CHAT_ID, "BOT iniciado", "");
+  bot.sendMessage(CHAT_ID), "SE PUEDE PEDIR: TEMP ; GAS ; HUM ; LUZ", "");
   
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
@@ -309,7 +310,7 @@ void loop()
     mapluz = map(lecluz, 0, 4095, 0, 100);
     maphum = map(lechum, 0, 4095, 0, 100);
 
-  //SI SE SUPERAN LOS UMBRALES:
+  //SI SE SUPERAN LOS UMBRALES: (TELEGRAM)
 
     //TEMPERATURA
     if (lectemp > umbtemp && checkeotemp == 0)
@@ -359,6 +360,37 @@ void loop()
       checkeohum = 0;
     }
 
+  //Pedirle al bot que envie valores
+  if (timer >= timer1000) //Esto ocurre una vez cada segundo
+    { 
+      int no_leidos = bot.getUpdates(bot.last_message_received + 1); //Se revisa si hay algún mensaje nuevo / no procesado
+      
+      if (no_leidos > 0) //Si hay algun mensaje no procesado
+      {
+        String recibido = bot.messages[0].text; //El nuevo mensaje se iguala a recibido
+
+        if (recibido == "TEMP")
+        {
+          bot.sendMessage(CHAT_ID, "TEMP ACTUAL: " + String(lectemp), "");
+        }
+        if (recibido == "HUM")
+        {
+          bot.sendMessage(CHAT_ID, "HUMEDAD ACTUAL: " + String(maphum), "");
+        }
+        if (recibido == "GAS")
+        {
+          bot.sendMessage(CHAT_ID, "GAS ACTUAL: " + String(mapgas), "");
+        }
+        if (recibido == "LUZ")
+        {
+          bot.sendMessage(CHAT_ID, "LUZ ACTUAL: " + String(mapluz), "");
+        }
+      }
+
+      timer1000 = timer + 1000;
+    }
+
+  //FIN UMBRALES (FIN TELEGRAM)
     
 //***FIN SENSORES***
 
@@ -370,6 +402,8 @@ void loop()
     lcd_1.clear();
 
     break;
+
+///////////////////////CAMBIO A PANTALLA2
 
     case PANTALLA2:
 
@@ -558,7 +592,7 @@ void loop()
       ESTADO = PANTALLA2;
     }
 
-    break;
+    break;  
 
     case RESTAR_UMBRAL:
 
