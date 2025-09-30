@@ -42,6 +42,10 @@ int ESTADO = 1;
   #define BOT4 27
   #define BOT5 16
 
+  //INVERTIR LOS NUMEROS SI LOS BOTONES ESTAN EN PULLUP
+  #define PRESIONADO 1
+  #define SOLTADO 0
+
   int lecb1;
   int lecb2;
   int lecb3;
@@ -409,7 +413,7 @@ void loop()
     
 //***FIN SENSORES***
 
-    if (lecb1 == 1)
+    if (lecb1 == PRESIONADO)
     {
       ESTADO = CAMBIO_LECTURA;
     }
@@ -465,27 +469,27 @@ void loop()
 
 //***FIN DISPLAY***
 
-    if (lecb1 == 1)
+    if (lecb1 == PRESIONADO)
     {
       ESTADO = SUMAR_GMT; 
     }
 
-    if (lecb2 == 1)
+    if (lecb2 == PRESIONADO)
     {
       ESTADO = RESTAR_GMT;
     }
         
-    if (lecb3 == 1)
+    if (lecb3 == PRESIONADO)
     {
       ESTADO = CAMBIO_UMBRAL;
     }
         
-    if (lecb4 == 1)
+    if (lecb4 == PRESIONADO)
     {
       ESTADO = SUMAR_UMBRAL;
     }
    
-    if (lecb5 == 1)
+    if (lecb5 == PRESIONADO)
     {
       ESTADO = RESTAR_UMBRAL;
     }
@@ -494,7 +498,7 @@ void loop()
 
     case CAMBIO_LECTURA: //CAMBIAR ESTO PARA AGREGAR QUE TAMBIEN SE HAGA DISPLAY DE LA HORA
 
-    if (lecb1 == 0)
+    if (lecb1 == SOLTADO)
     {
       lectura_seleccionada = lectura_seleccionada + 1;
       lcd_1.clear();
@@ -507,7 +511,7 @@ void loop()
       ESTADO = PANTALLA1;
     }
 
-    if(lecb2 == 1)
+    if(lecb2 == PRESIONADO)
     {
       lcd_1.clear();
       ESTADO = FASE1;
@@ -517,7 +521,7 @@ void loop()
 
     case FASE1:
 
-    if (lecb1 == 0 && lecb2 == 0)
+    if (lecb1 == SOLTADO && lecb2 == SOLTADO)
     {
       lcd_1.clear();
       ESTADO = PANTALLA2;
@@ -527,7 +531,7 @@ void loop()
 
     case FASE2:
 
-    if (lecb1 == 0 && lecb2 == 0)
+    if (lecb1 == SOLTADO && lecb2 == SOLTADO)
     {
       lcd_1.clear();
       ESTADO = PANTALLA1;
@@ -564,7 +568,7 @@ void loop()
 
     case CAMBIO_UMBRAL:
 
-    if (lecb3 == 0)
+    if (lecb3 == SOLTADO)
     {
       umbral_seleccionado = umbral_seleccionado + 1;
       lcd_1.clear();
@@ -581,28 +585,28 @@ void loop()
 
     case SUMAR_UMBRAL:
 
-    if (umbral_seleccionado == 1 && lecb4 == 0)
+    if (umbral_seleccionado == 1 && lecb4 == SOLTADO)
     {
       umbtemp = umbtemp + 1;
       lcd_1.clear();
       ESTADO = PANTALLA2;
     }
 
-    if (umbral_seleccionado == 2 && lecb4 == 0)
+    if (umbral_seleccionado == 2 && lecb4 == SOLTADO)
     {
       umbluz = umbluz + 1;
       lcd_1.clear();
       ESTADO = PANTALLA2;
     }
 
-    if (umbral_seleccionado == 3 && lecb4 == 0)
+    if (umbral_seleccionado == 3 && lecb4 == SOLTADO)
     {
       umbhum = umbhum + 1;
       lcd_1.clear();
       ESTADO = PANTALLA2;
     }
 
-    if (umbral_seleccionado == 4 && lecb4 == 0)
+    if (umbral_seleccionado == 4 && lecb4 == SOLTADO)
     {
       umbgas = umbgas + 1;
       lcd_1.clear();
@@ -613,28 +617,28 @@ void loop()
 
     case RESTAR_UMBRAL:
 
-    if (umbral_seleccionado == 1 && lecb5 == 0)
+    if (umbral_seleccionado == 1 && lecb5 == SOLTADO)
     {
       umbtemp = umbtemp - 1;
       lcd_1.clear();
       ESTADO = PANTALLA2;
     }
 
-    if (umbral_seleccionado == 2 && lecb5 == 0)
+    if (umbral_seleccionado == 2 && lecb5 == SOLTADO)
     {
       umbluz = umbluz - 1;
       lcd_1.clear();
       ESTADO = PANTALLA2;
     }
 
-    if (umbral_seleccionado == 3 && lecb5 == 0)
+    if (umbral_seleccionado == 3 && lecb5 == SOLTADO)
     {
       umbhum = umbhum - 1;
       lcd_1.clear();
       ESTADO = PANTALLA2;
     }
 
-    if (umbral_seleccionado == 4 && lecb5 == 0)
+    if (umbral_seleccionado == 4 && lecb5 == SOLTADO)
     {
       umbgas = umbgas - 1;
       lcd_1.clear();
@@ -645,7 +649,7 @@ void loop()
 
     case SUMAR_GMT:
 
-    if (lecb1 == 0)
+    if (lecb1 == SOLTADO)
     {
       GMT = GMT + 1;
 
@@ -655,12 +659,13 @@ void loop()
       }
 
       gmtOffset_sec = GMT * 3600;
+      configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
       lcd_1.clear();
       ESTADO = PANTALLA2;
     }
 
-    if (lecb2 == 1)
+    if (lecb2 == PRESIONADO)
     {
       ESTADO = FASE2;
     }
@@ -669,7 +674,7 @@ void loop()
 
     case RESTAR_GMT:
 
-    if (lecb2 == 0)
+    if (lecb2 == SOLTADO)
     {
       GMT = GMT - 1;
 
@@ -679,12 +684,13 @@ void loop()
       }
 
       gmtOffset_sec = GMT * 3600;
+      configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
       lcd_1.clear();
       ESTADO = PANTALLA2;
     }
 
-    if (lecb1 == 1)
+    if (lecb1 == PRESIONADO)
     {
       ESTADO = FASE2;
     }
