@@ -562,7 +562,7 @@ void loop()
 
 //***FIN EEPROM***
 
-    }    
+    }
 
     break;
 
@@ -713,7 +713,7 @@ unsigned long recibirTiempoTimestamp()
 String recibirTiempoString() {
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
-    return "Error";
+    return "Error tiempo";
   }
   char buffer[9];
   sprintf(buffer, "%02d:%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
