@@ -15,7 +15,6 @@
 
 //***ESTADOS***
 
-int ESTADO = 1;
 #define PANTALLA1 1
 #define PANTALLA2 2
 #define FASE1 3
@@ -30,6 +29,7 @@ int ESTADO = 1;
 #define UMBRAL_LUZ_SUPERADO 12  //NO SE USA
 #define UMBRAL_GAS_SUPERADO 13  //NO SE USA
 #define CAMBIO_LECTURA 14
+int ESTADO = PANTALLA1;
 
 //***FIN ESTADOS***
 
@@ -60,6 +60,17 @@ int ESTADO = 1;
 
 //***FIN BOTONES***
 
+
+//***LEDS***
+int led1 = 17;
+int led2 = 18;
+int led3 = 19;
+
+int checktemp = 0;
+int checkhum = 0; 
+int checkluz = 0;
+int checkgas = 0;
+//***FIN LEDS***
 
 //***DISPLAY***
 
@@ -160,6 +171,14 @@ void setup()
   Serial.println("Programa iniciado");
   Serial.println("");
 
+//***LEDS***
+
+pinMode(led1, OUTPUT);
+pinMode(led2, OUTPUT);
+pinMode(led3, OUTPUT);
+
+//**FIN LEDS***
+
 //***WIFI***
 
   WiFi.mode(WIFI_STA);
@@ -256,6 +275,81 @@ void loop()
 {
   timer = millis();
 
+  //RECIBIR TIEMPO
+  unsigned long timestamp = recibirTiempoTimestamp();
+
+//***LEDS***
+
+//SISTEMA PARA PRENDER LEDS
+if (maptemp > umbtemp)
+{
+  int checktemp = 1;
+}
+if (maptemp < umbtemp)
+{
+  int checktemp = 0;
+}
+
+if (maphum > umbhum)
+{
+  int checkhum = 1;
+}
+if (maphum < umbhum)
+{
+  int checkhum = 0;
+}
+
+if (mapluz > umbluz)
+{
+  int checkluz = 1;
+}
+if (mapluz < umbluz)
+{
+  int checkluz = 0;
+}
+
+if (mapgas > umbgas)
+{
+  int checkgas = 1;
+}
+if (mapgas < umbgas)
+{
+  int checkgas = 0;
+}
+
+if (checktemp + checkhum + checkluz + checkgas == 0)
+{
+  digitalWrite(led1, HIGH); //verde
+  digitalWrite(led2, LOW);  //naranja
+  digitalWrite(led3, LOW);  //rojo
+}
+if (checktemp + checkhum + checkluz + checkgas == 1)
+{
+  digitalWrite(led1, HIGH);
+  digitalWrite(led2, LOW);
+  digitalWrite(led3, LOW);
+}
+if (checktemp + checkhum + checkluz + checkgas == 2)
+{
+  digitalWrite(led1, LOW);
+  digitalWrite(led2, HIGH);
+  digitalWrite(led3, LOW);
+}
+if (checktemp + checkhum + checkluz + checkgas == 3)
+{
+  digitalWrite(led1, LOW);
+  digitalWrite(led2, HIGH);
+  digitalWrite(led3, LOW);
+}
+if (checktemp + checkhum + checkluz + checkgas == 4)
+{
+  digitalWrite(led1, LOW);
+  digitalWrite(led2, LOW);
+  digitalWrite(led3, HIGH);
+}
+
+//***FIN LEDS***
+
 
 //***BOTONES***
 
@@ -271,9 +365,6 @@ void loop()
   {
     //////////////////////PANTALLA1//////////////////////
     case PANTALLA1:
-
-  //RECIBIR TIEMPO
-  unsigned long timestamp = recibirTiempoTimestamp();
 
 //***DISPLAY***
 
@@ -324,7 +415,7 @@ void loop()
     mapgas = map(lecgas, 0, 4095, 0, 100);
     mapluz = map(lecluz, 0, 4095, 0, 100);
     maphum = lechum; //NO HAY MAPEO
-    //Temperatura tampoco tiene mapeo
+    maptemp = lectemp; //Temperatura tampoco tiene mapeo
 
   //SI SE SUPERAN LOS UMBRALES: (TELEGRAM)
 
