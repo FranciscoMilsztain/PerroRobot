@@ -30,7 +30,8 @@
 #define UMBRAL_LUZ_SUPERADO 12  //NO SE USA
 #define UMBRAL_GAS_SUPERADO 13  //NO SE USA
 #define CAMBIO_LECTURA 14
-int ESTADO = PANTALLA1;
+#define ESTADO0 15
+int ESTADO = ESTADO0;
 
 //***FIN ESTADOS***
 
@@ -41,7 +42,7 @@ int ESTADO = PANTALLA1;
   #define BOT2 33
   #define BOT3 32
   #define BOT4 27
-  #define BOT5 16
+  #define BOT5 26
 
   //INVERTIR LOS NUMEROS SI LOS BOTONES ESTAN EN PULLUP
   #define PRESIONADO 1
@@ -128,7 +129,7 @@ Preferences umbral_eeprom;
 //***WIFI***
 
 const char* ssid = "MECA-IoT";
-const char* password = "IoT$2025";
+const char* password = "IoT$2026";
 const char* ntpServer = "pool.ntp.org";
 
 //***FIN WIFI***
@@ -154,7 +155,7 @@ const int daylightOffset_sec = 0;
 
 int bloqtelegram;
 
-//Token del bot
+//Token del bot 
 #define BOTtoken "8373807622:AAFkzYRff0xraeKJD-SOddWeex2Xt4lFyYs"
 //ID del chat con el bot
 #define CHAT_ID "7601536385"
@@ -184,7 +185,8 @@ pinMode(led3, OUTPUT);
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
-  client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
+//  client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
+  client.setInsecure();
   while (WiFi.status() != WL_CONNECTED) 
   {
     delay(500);
@@ -193,8 +195,10 @@ pinMode(led3, OUTPUT);
   Serial.println("WiFi conectado"); //Se manda al verificar que se logró establecer la conexión al wifi
 
   //El BOT manda un mensaje a telegram para anunciar que se inició
-  bot.sendMessage(CHAT_ID, "BOT iniciado", "");
-  bot.sendMessage(CHAT_ID, "SE PUEDE PEDIR: TEMP ; GAS ; HUM ; LUZ", "");
+  Serial.print("Memoria libre antes del bot: ");
+  Serial.println(ESP.getFreeHeap());
+//  bot.sendMessage(CHAT_ID, "BOT iniciado", "");
+//  bot.sendMessage(CHAT_ID, "SE PUEDE PEDIR: TEMP ; GAS ; HUM ; LUZ", "");
   
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
   struct tm timeinfo;
@@ -210,11 +214,11 @@ pinMode(led3, OUTPUT);
 
 //***BOTONES***
 
-  pinMode(BOT1, INPUT);
-  pinMode(BOT2, INPUT);
-  pinMode(BOT3, INPUT);
-  pinMode(BOT4, INPUT);
-  pinMode(BOT5, INPUT);
+  pinMode(BOT1, INPUT_PULLUP);
+  pinMode(BOT2, INPUT_PULLUP);
+  pinMode(BOT3, INPUT_PULLUP);
+  pinMode(BOT4, INPUT_PULLUP);
+  pinMode(BOT5, INPUT_PULLUP);
 
 //***FIN BOTONES***
 
@@ -262,7 +266,7 @@ pinMode(led3, OUTPUT);
   Serial.println(umbgas);
 
   Serial.print("Humedad: ");
-  Serial.print(umbhum);
+  Serial.println(umbhum);
 
   Serial.print("Luz: "); 
   Serial.println(umbluz);
@@ -366,6 +370,14 @@ if (checktemp + checkhum + checkluz + checkgas == 4)
 
   switch (ESTADO)
   {
+    case ESTADO0:
+    bot.sendMessage(CHAT_ID, "BOT iniciado", "");
+    bot.sendMessage(CHAT_ID, "SE PUEDE PEDIR: TEMP ; GAS ; HUM ; LUZ", "");
+
+    ESTADO = PANTALLA1;
+    
+    break;
+
     //////////////////////PANTALLA1//////////////////////
     case PANTALLA1:
 
