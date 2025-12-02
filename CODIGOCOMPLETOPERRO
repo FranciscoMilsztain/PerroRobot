@@ -13,6 +13,12 @@
 #include <ArduinoJson.h>
 #include "AsyncMqttClient.h"
 
+
+//***2 CORE LOOPS***
+TaskHandle_t Task1;
+TaskHandle_t Task2;
+//***FIN 2 CORE LOOPS***
+
 //***ESTADOS***
 
 #define PANTALLA1 1
@@ -97,7 +103,7 @@ LiquidCrystal_I2C lcd_1(0x27, 16, 2);
   float umbgas2;
 
   //Sensor Luz
-  int pinluz = 34; //CAMBIAR ESTE PIN POR UNO ANALÓGICO
+  int pinluz = 34;
   float lecluz;
   float umbluz;
 
@@ -137,7 +143,7 @@ Preferences umbral_eeprom;
 
 const char* ssid = "Fibertel2025";
 const char* password = "Diciembre2026$";
-const char* ntpServer = "pool.ntp.org";
+const char* ntpServer = "pool.ntp.org"; //La pagina web de donde se extrae la hora
 
 //***FIN WIFI***
 
@@ -356,7 +362,7 @@ void fun_entra(void) {
   ///////////////////////// fin de consigo la hora
   datos_struct[indice_entra].time = timestamp;
   datos_struct[indice_entra].T1 = maptemp;  /// leeo los datos //aca va la funcion de cada sensor
-  datos_struct[indice_entra].H1 = maphum;  //// se puede pasar por un parametro valor entre 0 y 100
+  datos_struct[indice_entra].H1 = maphum;   /// se puede pasar por un parametro valor entre 0 y 100
   datos_struct[indice_entra].luz = mapluz;
   datos_struct[indice_entra].G1 = mapgas;
   datos_struct[indice_entra].G2 = mapgas2;
@@ -389,17 +395,18 @@ pinMode(led3, OUTPUT);
 
   WiFi.mode(WIFI_STA);
   
+  //***MQTT***
+  setupmqtt();
+  //***FIN MQTT***
+
+    
   //El BOT manda un mensaje a telegram para anunciar que se inició
   Serial.print("Memoria libre antes del bot: ");
   Serial.println(ESP.getFreeHeap());
 //  bot.sendMessage(CHAT_ID, "BOT iniciado", "");
 //  bot.sendMessage(CHAT_ID, "SE PUEDE PEDIR: TEMP ; GAS ; HUM ; LUZ", "");
-  
-  //***MQTT***
-  setupmqtt();
-  //***FIN MQTT***
 
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer); //Extrae la hora de internet
   struct tm timeinfo;
   if (getLocalTime(&timeinfo)) 
   {
@@ -453,7 +460,7 @@ pinMode(led3, OUTPUT);
 
   umbtemp = umbral_eeprom.getFloat("umbtemp", 24.0); //EEPROM TEMPERATURA
   umbgas  = umbral_eeprom.getFloat("umbgas", 24.0);  //EEPROM GAS
-  umbgas2  = umbral_eeprom.getFloat("umbgas2", 24.0); //EEPROM GAS2
+  umbgas2 = umbral_eeprom.getFloat("umbgas2", 24.0); //EEPROM GAS2
   umbhum  = umbral_eeprom.getFloat("umbhum", 24.0);  //EEPROM HUMEDAD
   umbluz  = umbral_eeprom.getFloat("umbluz", 24.0);  //EEPROM LUZ
 
@@ -476,6 +483,30 @@ pinMode(led3, OUTPUT);
   Serial.println(umbluz);
 
 //***FIN EEPROM***
+
+//***2 CORE LOOPS***
+
+  xTaskCreatePinnedToCore(
+    Task1code,  //Nombre de la funcion
+    "Task1",    //Nombre de la tarea
+    10000,      //Limite de espacio de la tarea
+    NULL,       //Parametro
+    1,          //Prioridad de la tarea
+    &Task1,     //A que tarea se refiere
+    0           //A que nucleo del ESP32 se asigna la tarea
+  );
+
+  xTaskCreatePinnedToCore(
+    Task2code,  //Nombre de la funcion
+    "Task2",    //Nombre de la tarea
+    10000,      //Limite de espacio de la tarea
+    NULL,       //Parametro
+    1,          //Prioridad de la tarea
+    &Task2,     //A que tarea se refiere
+    1           //A que nucleo del ESP32 se asigna la tarea
+  );
+
+ //***FIN 2 CORE LOOPS***
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -485,18 +516,6 @@ pinMode(led3, OUTPUT);
 void loop() 
 {
   timer = millis();
-  
-  now = millis();
-  if (now - lastMeasure1 > interval_envio) 
-  {  ////envio el doble de lectura por si falla algun envio
-    lastMeasure1 = now;                       /// cargo el valor actual de millis
-    fun_envio_mqtt();                         ///envio los valores por mqtt
-  }
-  if (now - lastMeasure2 > interval_leeo) 
-  {
-    lastMeasure2 = now;  /// cargo el valor actual de millis
-    fun_entra();         ///ingreso los valores a la cola struct
-  }
 
   if (lecb1 == PRESIONADO)
   {
@@ -573,7 +592,7 @@ if (mapgas2 < umbgas2)
 if (checkeotemp + checkeohum + checkeoluz + checkeogas + checkeogas2 == 0)
 {
   digitalWrite(led1, HIGH); //verde
-  digitalWrite(led2, LOW);  //naranja
+  digitalWrite(led2, LOW);  //naranja / amarillo?
   digitalWrite(led3, LOW);  //rojo
 }
 if (checkeotemp + checkeohum + checkeoluz + checkeogas + checkeogas2 == 1)
@@ -603,7 +622,6 @@ if (checkeotemp + checkeohum + checkeoluz + checkeogas + checkeogas2 > 3)
 
 //***FIN LEDS***
 
-
 //***BOTONES***
 
   lecb1 = digitalRead(BOT1);
@@ -613,521 +631,551 @@ if (checkeotemp + checkeohum + checkeoluz + checkeogas + checkeogas2 > 3)
   lecb5 = digitalRead(BOT5);
 
 //***FIN BOTONES***
+}  
+//FIN void loop()
+//FIN void loop()
+//FIN void loop()
 
-  switch (ESTADO)
+void Task1code(void* pvParameters) 
+{
+  //MQTT LOOP
+  for(;;)
   {
-    case ESTADO0:
-    bot.sendMessage(CHAT_ID, "BOT iniciado", "");
-    bot.sendMessage(CHAT_ID, "SE PUEDE PEDIR: TEMP ; GAS ; GAS2 ; HUM ; LUZ", "");
-
-    ESTADO = PANTALLA1;
-    
-    break;
-
-    //////////////////////PANTALLA1//////////////////////
-    case PANTALLA1:
-
-//***DISPLAY***
-    lcd_1.clear();
-    lcd_1.setCursor(0, 0);
-
-    if (lectura_seleccionada == 1)
+    now = millis();
+    if (now - lastMeasure1 > interval_envio) 
+    {  ////envio el doble de lectura por si falla algun envio
+      lastMeasure1 = now;                       /// cargo el valor actual de millis
+      fun_envio_mqtt();                         ///envio los valores por mqtt
+    }
+    if (now - lastMeasure2 > interval_leeo) 
     {
-      lcd_1.print("TEMP:");
-      lcd_1.print(lectemp);
+      lastMeasure2 = now;  /// cargo el valor actual de millis
+      fun_entra();         ///ingreso los valores a la cola struct
     }
-
-    if (lectura_seleccionada == 2)
-    {
-      lcd_1.print("LUZ:");
-      lcd_1.print(mapluz);
-    }
-
-    if (lectura_seleccionada == 3)
-    {
-      lcd_1.print("HUMEDAD:");
-      lcd_1.print(maphum);
-    }
-
-    if (lectura_seleccionada == 4)
-    {
-      lcd_1.print("DIOXIDO:");
-      lcd_1.print(mapgas);
-    }
-
-    if (lectura_seleccionada == 5)
-    {
-      lcd_1.print("METANO:");
-      lcd_1.print(mapgas2);
-    }
-
-    lcd_1.setCursor(3, 0);
-    lcd_1.setCursor(6, 0);
-    lcd_1.setCursor(9, 0);
-    lcd_1.setCursor(12, 0);
-    lcd_1.setCursor(14, 0);
-    lcd_1.print(" ");
-
-
-//***FIN DISPLAY***
-  
-//***SENSORES***
-
-    //Sensor Gas
-    lecgas = analogRead(pingas); //Lectura gas
-
-    //Sensor Gas2
-    lecgas2 = analogRead(pingas2); //Lectura gas2
-
-    //Sensor Luz
-    lecluz = analogRead(pinluz); //Lectura Luz
-    
-    //Sensor Temp
-    sensors_event_t humidity, temp;
-    aht.getEvent(&humidity, &temp);
-    
-    lectemp = temp.temperature; //Lectura Temp en C°
-    lechum = humidity.relative_humidity; //Lectura de humedad en %
-
-    //MAPEO
-    mapgas = map(lecgas, 0, 4095, 0, 100);
-    mapgas2 = map(lecgas2, 0, 4095, 0, 100);
-    mapluz = map(lecluz, 0, 4095, 0, 100);
-    maphum = lechum; //NO HAY MAPEO
-    maptemp = lectemp; //Temperatura tampoco tiene mapeo
-
-  //SI SE SUPERAN LOS UMBRALES: (TELEGRAM)
-
-    //TEMPERATURA
-    if (lectemp > umbtemp && checkeotemp == 0)
-    {
-      //ESTADO = UMBRAL_TEMP_SUPERADO;
-      bot.sendMessage(CHAT_ID, "Se superó el umbral de temperatura, TEMP ACTUAL: " + String(lectemp), "");
-      checkeotemp = 1;
-    }
-    if (lectemp < umbtemp)
-    {
-      checkeotemp = 0;
-    }
-
-    //GAS
-    if (mapgas > umbgas && checkeogas == 0)
-    {
-      //ESTADO = UMBRAL_GAS_SUPERADO;
-      bot.sendMessage(CHAT_ID, "Se superó el umbral de gas, DIOXIDO ACTUAL: " + String(mapgas), "");
-      checkeogas = 1;
-    }
-    if (mapgas < umbgas)
-    {
-      checkeogas = 0;
-    }
-
-    //GAS2
-    if (mapgas2 > umbgas2 && checkeogas2 == 0)
-    {
-      //ESTADO = UMBRAL_GAS_SUPERADO;
-      bot.sendMessage(CHAT_ID, "Se superó el umbral de gas, METANO ACTUAL: " + String(mapgas2), "");
-      checkeogas2 = 1;
-    }
-    if (mapgas2 < umbgas2)
-    {
-      checkeogas2 = 0;
-    }
-
-    //LUZ
-    if (mapluz > umbluz && checkeoluz == 0)
-    {
-      //ESTADO = UMBRAL_LUZ_SUPERADO;
-      bot.sendMessage(CHAT_ID, "Se superó el umbral de luz, LUZ ACTUAL: " + String(mapluz), "");
-      checkeoluz = 1;
-    }
-    if (mapluz < umbluz)
-    {
-      checkeoluz = 0;
-    }
-
-    //HUMEDAD
-    if (maphum > umbhum && checkeohum == 0)
-    {
-      //ESTADO = UMBRAL_HUM_SUPERADO;
-      bot.sendMessage(CHAT_ID, "Se superó el umbral de humedad, HUMEDAD ACTUAL: " + String(maphum), "");
-      checkeohum = 1;
-    }
-    if (maphum < umbhum)
-    {
-      checkeohum = 0;
-    }
-
-  //Pedirle al bot que envie valores
-  if (lecb5 == PRESIONADO)
-  {
-    if (timer >= timer1000) //Esto ocurre una vez cada segundo
-    { 
-      int no_leidos = bot.getUpdates(bot.last_message_received + 1); //Se revisa si hay algún mensaje nuevo / no procesado
-      
-      if (no_leidos > 0) //Si hay algun mensaje no procesado
-      {
-        String recibido = bot.messages[0].text; //El nuevo mensaje se iguala a recibido
-
-        if (recibido == "TEMP")
-        {
-          bot.sendMessage(CHAT_ID, "TEMP ACTUAL: " + String(lectemp), "");
-        }
-        if (recibido == "HUM")
-        {
-          bot.sendMessage(CHAT_ID, "HUMEDAD ACTUAL: " + String(maphum), "");
-        }
-        if (recibido == "GAS")
-        {
-          bot.sendMessage(CHAT_ID, "DIOXIDO ACTUAL: " + String(mapgas), "");
-        }
-        if (recibido == "GAS2")
-        {
-          bot.sendMessage(CHAT_ID, "METANO ACTUAL: " + String(mapgas2), "");
-        }
-        if (recibido == "LUZ")
-        {
-          bot.sendMessage(CHAT_ID, "LUZ ACTUAL: " + String(mapluz), "");
-        }
-      }
-
-      //IMPRIMIR TIEMPO
-      Serial.print("TIEMPO ACTUAL: ");
-      Serial.println(recibirTiempoString());
-      timer1000 = timer + 1000;
-    }
-
-  //FIN UMBRALES (FIN TELEGRAM)
   }
+} //FIN PRIMER LOOP
+
+void Task2code(void* pvParameters) 
+{
+  //MAQUINA DE ESTADOS
+  for(;;) 
+  {       
+    switch (ESTADO)
+    {
+      case ESTADO0:
+      bot.sendMessage(CHAT_ID, "BOT iniciado", "");
+      bot.sendMessage(CHAT_ID, "SE PUEDE PEDIR: TEMP ; GAS ; GAS2 ; HUM ; LUZ", "");
+      bot.sendMessage(CHAT_ID, "Presionar el boton 5 al mandar su mensaje", "");
   
-//***FIN SENSORES***
-
-    if (lecb1 == PRESIONADO)
-    {
-      ESTADO = CAMBIO_LECTURA;
-    }
-
-    break;
-
-//////////////////////PANTALLA2//////////////////////
-    case PANTALLA2:
-
-//***DISPLAY***
-
-    lcd_1.clear();
-    lcd_1.setCursor(0, 0);
+      ESTADO = PANTALLA1;
+      
+      break;
+  
+      //////////////////////PANTALLA1//////////////////////
+      case PANTALLA1:
+  
+  //***DISPLAY***
+      lcd_1.clear();
+      lcd_1.setCursor(0, 0);
+  
+      if (lectura_seleccionada == 1)
+      {
+        lcd_1.print("TEMP:");
+        lcd_1.print(lectemp);
+      }
+  
+      if (lectura_seleccionada == 2)
+      {
+        lcd_1.print("LUZ:");
+        lcd_1.print(mapluz);
+      }
+  
+      if (lectura_seleccionada == 3)
+      {
+        lcd_1.print("HUMEDAD:");
+        lcd_1.print(maphum);
+      }
+  
+      if (lectura_seleccionada == 4)
+      {
+        lcd_1.print("DIOXIDO:");
+        lcd_1.print(mapgas);
+      }
+  
+      if (lectura_seleccionada == 5)
+      {
+        lcd_1.print("METANO:");
+        lcd_1.print(mapgas2);
+      }
+  
+      lcd_1.setCursor(3, 0);
+      lcd_1.setCursor(6, 0);
+      lcd_1.setCursor(9, 0);
+      lcd_1.setCursor(12, 0);
+      lcd_1.setCursor(14, 0);
+      lcd_1.print(" ");
+  
+  
+  //***FIN DISPLAY***
     
-    if (umbral_seleccionado == 1)
-    {
-      lcd_1.print("TEMP:");
-      lcd_1.print(umbtemp);
-
-      lcd_1.setCursor(0, 1);
-      lcd_1.print("GMT:");
-      lcd_1.print(GMT);
-    }
-
-    if (umbral_seleccionado == 2)
-    {
-      lcd_1.print("LUZ:");
-      lcd_1.print(umbluz);
-
-      lcd_1.setCursor(0, 1);
-      lcd_1.print("GMT:");
-      lcd_1.print(GMT);
-    }
-
-    if (umbral_seleccionado == 3)
-    {
-      lcd_1.print("HUMEDAD:");
-      lcd_1.print(umbhum);
-
-      lcd_1.setCursor(0, 1);
-      lcd_1.print("GMT:");
-      lcd_1.print(GMT);
-    }
-
-    if (umbral_seleccionado == 4)
-    {
-      lcd_1.print("DIOXIDO:");
-      lcd_1.print(umbgas);
-
-      lcd_1.setCursor(0, 1);
-      lcd_1.print("GMT:");
-      lcd_1.print(GMT);
-    }
-    
-    if (umbral_seleccionado == 5)
-    {
-      lcd_1.print("METANO:");
-      lcd_1.print(umbgas2);
-
-      lcd_1.setCursor(0, 1);
-      lcd_1.print("GMT:");
-      lcd_1.print(GMT);
-    }
-
-//***FIN DISPLAY***
-
-    if (lecb1 == PRESIONADO)
-    {
-      ESTADO = SUMAR_GMT; 
-    }
-
-    if (lecb2 == PRESIONADO)
-    {
-      ESTADO = RESTAR_GMT;
-    }
-        
-    if (lecb3 == PRESIONADO)
-    {
-      ESTADO = CAMBIO_UMBRAL;
-    }
-        
-    if (lecb4 == PRESIONADO)
-    {
-      ESTADO = SUMAR_UMBRAL;
-    }
-   
+  //***SENSORES***
+  
+      //Sensor Gas
+      lecgas = analogRead(pingas); //Lectura gas
+  
+      //Sensor Gas2
+      lecgas2 = analogRead(pingas2); //Lectura gas2
+  
+      //Sensor Luz
+      lecluz = analogRead(pinluz); //Lectura Luz
+      
+      //Sensor Temp
+      sensors_event_t humidity, temp;
+      aht.getEvent(&humidity, &temp);
+      
+      lectemp = temp.temperature; //Lectura Temp en C°
+      lechum = humidity.relative_humidity; //Lectura de humedad en %
+  
+      //MAPEO
+      mapgas = map(lecgas, 0, 4095, 0, 100);
+      mapgas2 = map(lecgas2, 0, 4095, 0, 100);
+      mapluz = map(lecluz, 0, 4095, 0, 100);
+      maphum = lechum; //NO HAY MAPEO
+      maptemp = lectemp; //Temperatura tampoco tiene mapeo
+  
+    //SI SE SUPERAN LOS UMBRALES: (TELEGRAM)
+  
+      //TEMPERATURA
+      if (lectemp > umbtemp && checkeotemp == 0)
+      {
+        //ESTADO = UMBRAL_TEMP_SUPERADO;
+        bot.sendMessage(CHAT_ID, "Se superó el umbral de temperatura, TEMP ACTUAL: " + String(lectemp), "");
+        checkeotemp = 1;
+      }
+      if (lectemp < umbtemp)
+      {
+        checkeotemp = 0;
+      }
+  
+      //GAS
+      if (mapgas > umbgas && checkeogas == 0)
+      {
+        //ESTADO = UMBRAL_GAS_SUPERADO;
+        bot.sendMessage(CHAT_ID, "Se superó el umbral de gas, DIOXIDO ACTUAL: " + String(mapgas), "");
+        checkeogas = 1;
+      }
+      if (mapgas < umbgas)
+      {
+        checkeogas = 0;
+      }
+  
+      //GAS2
+      if (mapgas2 > umbgas2 && checkeogas2 == 0)
+      {
+        //ESTADO = UMBRAL_GAS_SUPERADO;
+        bot.sendMessage(CHAT_ID, "Se superó el umbral de gas, METANO ACTUAL: " + String(mapgas2), "");
+        checkeogas2 = 1;
+      }
+      if (mapgas2 < umbgas2)
+      {
+        checkeogas2 = 0;
+      }
+  
+      //LUZ
+      if (mapluz > umbluz && checkeoluz == 0)
+      {
+        //ESTADO = UMBRAL_LUZ_SUPERADO;
+        bot.sendMessage(CHAT_ID, "Se superó el umbral de luz, LUZ ACTUAL: " + String(mapluz), "");
+        checkeoluz = 1;
+      }
+      if (mapluz < umbluz)
+      {
+        checkeoluz = 0;
+      }
+  
+      //HUMEDAD
+      if (maphum > umbhum && checkeohum == 0)
+      {
+        //ESTADO = UMBRAL_HUM_SUPERADO;
+        bot.sendMessage(CHAT_ID, "Se superó el umbral de humedad, HUMEDAD ACTUAL: " + String(maphum), "");
+        checkeohum = 1;
+      }
+      if (maphum < umbhum)
+      {
+        checkeohum = 0;
+      }
+  
+    //Pedirle al bot que envie valores
     if (lecb5 == PRESIONADO)
     {
-      ESTADO = RESTAR_UMBRAL;
+      if (timer >= timer1000) //Esto ocurre una vez cada segundo
+      { 
+        int no_leidos = bot.getUpdates(bot.last_message_received + 1); //Se revisa si hay algún mensaje nuevo / no procesado
+        
+        if (no_leidos > 0) //Si hay algun mensaje no procesado
+        {
+          String recibido = bot.messages[0].text; //El nuevo mensaje se iguala a recibido
+  
+          if (recibido == "TEMP")
+          {
+            bot.sendMessage(CHAT_ID, "TEMP ACTUAL: " + String(lectemp), "");
+          }
+          if (recibido == "HUM")
+          {
+            bot.sendMessage(CHAT_ID, "HUMEDAD ACTUAL: " + String(maphum), "");
+          }
+          if (recibido == "GAS")
+          {
+            bot.sendMessage(CHAT_ID, "DIOXIDO ACTUAL: " + String(mapgas), "");
+          }
+          if (recibido == "GAS2")
+          {
+            bot.sendMessage(CHAT_ID, "METANO ACTUAL: " + String(mapgas2), "");
+          }
+          if (recibido == "LUZ")
+          {
+            bot.sendMessage(CHAT_ID, "LUZ ACTUAL: " + String(mapluz), "");
+          }
+        }
+  
+        //IMPRIMIR TIEMPO
+        Serial.print("TIEMPO ACTUAL: ");
+        Serial.println(recibirTiempoString());
+        timer1000 = timer + 1000;
+      }
+  
+    //FIN UMBRALES (FIN TELEGRAM)
     }
     
-    lcd_1.setCursor(3, 0);
-    lcd_1.setCursor(6, 0);
-    lcd_1.setCursor(9, 0);
-    lcd_1.setCursor(12, 0);
-    lcd_1.setCursor(15, 0);
-
-    break;
-
-    case CAMBIO_LECTURA: //CAMBIAR ESTO PARA AGREGAR QUE TAMBIEN SE HAGA DISPLAY DE LA HORA
-
-    if (lecb1 == SOLTADO)
-    {
-      lectura_seleccionada = lectura_seleccionada + 1;
-      lcd_1.clear();
-
-      if (lectura_seleccionada > 5) 
+  //***FIN SENSORES***
+  
+      if (lecb1 == PRESIONADO)
       {
-        lectura_seleccionada = 1;
+        ESTADO = CAMBIO_LECTURA;
       }
-
-      ESTADO = PANTALLA1;
-    }
-
-    if(lecb2 == PRESIONADO)
-    {
+  
+      break;
+  
+  //////////////////////PANTALLA2//////////////////////
+      case PANTALLA2:
+  
+  //***DISPLAY***
+  
       lcd_1.clear();
-      ESTADO = FASE1;
-    }
-
-    lcd_1.setCursor(3, 0);
-    lcd_1.setCursor(6, 0);
-    lcd_1.setCursor(9, 0);
-    lcd_1.setCursor(12, 0);
-    lcd_1.setCursor(15, 0);
-
-    break;
-
-    case FASE1:
-
-    if (lecb1 == SOLTADO && lecb2 == SOLTADO)
-    {
-      lcd_1.clear();
-      ESTADO = PANTALLA2;
-    }
-
-    break;
-
-    case FASE2:
-
-    if (lecb1 == SOLTADO && lecb2 == SOLTADO)
-    {
-      lcd_1.clear();
-      ESTADO = PANTALLA1;
-
-
-//***EEPROM***
-
-      umbral_eeprom.begin("umbrales", false);
-
-      umbral_eeprom.putFloat("umbtemp", umbtemp); //Actualizar Temperatura
-      umbral_eeprom.putFloat("umbgas", umbgas);   //Actualizar Gas
-      umbral_eeprom.putFloat("umbgas2", umbgas2);   //Actualizar Gas2
-      umbral_eeprom.putFloat("umbhum", umbhum);   //Actualizar Humedad
-      umbral_eeprom.putFloat("umbluz", umbluz);   //Actualizar Luz
-
-      Serial.print("Umbral de Temperatura actualizado: ");
-      Serial.println(umbtemp);
-
-      Serial.print("Umbral de Gas actualizado: ");
-      Serial.println(umbgas);
-
-      Serial.print("Umbral de Gas2 actualizado: ");
-      Serial.println(umbgas2);
-
-      Serial.print("Umbral de Humedad actualizado: ");
-      Serial.println(umbhum);
-
-      Serial.print("Umbral de Luz actualizado: ");
-      Serial.println(umbluz);
-
-      umbral_eeprom.end();
-
-//***FIN EEPROM***
-
-    }
-
-    break;
-
-    case CAMBIO_UMBRAL:
-
-    if (lecb3 == SOLTADO)
-    {
-      umbral_seleccionado = umbral_seleccionado + 1;
-      lcd_1.clear();
-
-      if (umbral_seleccionado > 4) 
+      lcd_1.setCursor(0, 0);
+      
+      if (umbral_seleccionado == 1)
       {
-        umbral_seleccionado = 1;
+        lcd_1.print("TEMP:");
+        lcd_1.print(umbtemp);
+  
+        lcd_1.setCursor(0, 1);
+        lcd_1.print("GMT:");
+        lcd_1.print(GMT);
       }
-
-      ESTADO = PANTALLA2;
-    }
-
-    break;
-
-    case SUMAR_UMBRAL:
-
-    if (umbral_seleccionado == 1 && lecb4 == SOLTADO)
-    {
-      umbtemp = umbtemp + 1;
-      lcd_1.clear();
-      ESTADO = PANTALLA2;
-    }
-
-    if (umbral_seleccionado == 2 && lecb4 == SOLTADO)
-    {
-      umbluz = umbluz + 1;
-      lcd_1.clear();
-      ESTADO = PANTALLA2;
-    }
-
-    if (umbral_seleccionado == 3 && lecb4 == SOLTADO)
-    {
-      umbhum = umbhum + 1;
-      lcd_1.clear();
-      ESTADO = PANTALLA2;
-    }
-
-    if (umbral_seleccionado == 4 && lecb4 == SOLTADO)
-    {
-      umbgas = umbgas + 1;
-      lcd_1.clear();
-      ESTADO = PANTALLA2;
-    }
-
-    if (umbral_seleccionado == 5 && lecb4 == SOLTADO)
-    {
-      umbgas2 = umbgas2 + 1;
-      lcd_1.clear();
-      ESTADO = PANTALLA2;
-    }
-
-    break;  
-
-    case RESTAR_UMBRAL:
-
-    if (umbral_seleccionado == 1 && lecb5 == SOLTADO)
-    {
-      umbtemp = umbtemp - 1;
-      lcd_1.clear();
-      ESTADO = PANTALLA2;
-    }
-
-    if (umbral_seleccionado == 2 && lecb5 == SOLTADO)
-    {
-      umbluz = umbluz - 1;
-      lcd_1.clear();
-      ESTADO = PANTALLA2;
-    }
-
-    if (umbral_seleccionado == 3 && lecb5 == SOLTADO)
-    {
-      umbhum = umbhum - 1;
-      lcd_1.clear();
-      ESTADO = PANTALLA2;
-    }
-
-    if (umbral_seleccionado == 4 && lecb5 == SOLTADO)
-    {
-      umbgas = umbgas - 1;
-      lcd_1.clear();
-      ESTADO = PANTALLA2;
-    }
-
-    if (umbral_seleccionado == 5 && lecb5 == SOLTADO)
-    {
-      umbgas2 = umbgas2 - 1;
-      lcd_1.clear();
-      ESTADO = PANTALLA2;
-    }
-
-    break;
-
-    case SUMAR_GMT:
-
-    if (lecb1 == SOLTADO)
-    {
-      GMT = GMT + 1;
-
-      if (GMT > 12)
+  
+      if (umbral_seleccionado == 2)
       {
-        GMT = 12;
+        lcd_1.print("LUZ:");
+        lcd_1.print(umbluz);
+  
+        lcd_1.setCursor(0, 1);
+        lcd_1.print("GMT:");
+        lcd_1.print(GMT);
       }
-
-      gmtOffset_sec = GMT * 3600;
-      configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-
-      lcd_1.clear();
-      ESTADO = PANTALLA2;
-    }
-
-    if (lecb2 == PRESIONADO)
-    {
-      ESTADO = FASE2;
-    }
-
-    break;
-
-    case RESTAR_GMT:
-
-    if (lecb2 == SOLTADO)
-    {
-      GMT = GMT - 1;
-
-      if (GMT < -12)
+  
+      if (umbral_seleccionado == 3)
       {
-        GMT = -12;
+        lcd_1.print("HUMEDAD:");
+        lcd_1.print(umbhum);
+  
+        lcd_1.setCursor(0, 1);
+        lcd_1.print("GMT:");
+        lcd_1.print(GMT);
       }
-
-      gmtOffset_sec = GMT * 3600;
-      configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-
-      lcd_1.clear();
-      ESTADO = PANTALLA2;
-    }
-
-    if (lecb1 == PRESIONADO)
-    {
-      ESTADO = FASE2;
-    }
-
-    break;
-  }
-}
+  
+      if (umbral_seleccionado == 4)
+      {
+        lcd_1.print("DIOXIDO:");
+        lcd_1.print(umbgas);
+  
+        lcd_1.setCursor(0, 1);
+        lcd_1.print("GMT:");
+        lcd_1.print(GMT);
+      }
+      
+      if (umbral_seleccionado == 5)
+      {
+        lcd_1.print("METANO:");
+        lcd_1.print(umbgas2);
+  
+        lcd_1.setCursor(0, 1);
+        lcd_1.print("GMT:");
+        lcd_1.print(GMT);
+      }
+  
+  //***FIN DISPLAY***
+  
+      if (lecb1 == PRESIONADO)
+      {
+        ESTADO = SUMAR_GMT; 
+      }
+  
+      if (lecb2 == PRESIONADO)
+      {
+        ESTADO = RESTAR_GMT;
+      }
+          
+      if (lecb3 == PRESIONADO)
+      {
+        ESTADO = CAMBIO_UMBRAL;
+      }
+          
+      if (lecb4 == PRESIONADO)
+      {
+        ESTADO = SUMAR_UMBRAL;
+      }
+      
+      if (lecb5 == PRESIONADO)
+      {
+        ESTADO = RESTAR_UMBRAL;
+      }
+      
+      lcd_1.setCursor(3, 0);
+      lcd_1.setCursor(6, 0);
+      lcd_1.setCursor(9, 0);
+      lcd_1.setCursor(12, 0);
+      lcd_1.setCursor(15, 0);
+  
+      break;
+  
+      case CAMBIO_LECTURA: //CAMBIAR ESTO PARA AGREGAR QUE TAMBIEN SE HAGA DISPLAY DE LA HORA --> fake?
+  
+      if (lecb1 == SOLTADO)
+      {
+        lectura_seleccionada = lectura_seleccionada + 1;
+        lcd_1.clear();
+  
+        if (lectura_seleccionada > 5) //Si se supera 5, se vuelve a 1
+        {
+          lectura_seleccionada = 1;
+        }
+  
+        ESTADO = PANTALLA1;
+      }
+  
+      if(lecb2 == PRESIONADO)
+      {
+        lcd_1.clear();
+        ESTADO = FASE1;
+      }
+  
+      lcd_1.setCursor(3, 0);
+      lcd_1.setCursor(6, 0);
+      lcd_1.setCursor(9, 0);
+      lcd_1.setCursor(12, 0);
+      lcd_1.setCursor(15, 0);
+  
+      break;
+  
+      case FASE1:
+  
+      if (lecb1 == SOLTADO && lecb2 == SOLTADO)
+      {
+        lcd_1.clear();
+        ESTADO = PANTALLA2;
+      }
+  
+      break;
+  
+      case FASE2:
+  
+      if (lecb1 == SOLTADO && lecb2 == SOLTADO)
+      {
+        lcd_1.clear();
+        ESTADO = PANTALLA1;
+  
+  
+  //***EEPROM***
+  
+        umbral_eeprom.begin("umbrales", false); //Modo escritura
+  
+        umbral_eeprom.putFloat("umbtemp", umbtemp); //Actualizar Temperatura
+        umbral_eeprom.putFloat("umbgas", umbgas);   //Actualizar Gas
+        umbral_eeprom.putFloat("umbgas2", umbgas2); //Actualizar Gas2
+        umbral_eeprom.putFloat("umbhum", umbhum);   //Actualizar Humedad
+        umbral_eeprom.putFloat("umbluz", umbluz);   //Actualizar Luz
+  
+        Serial.print("Umbral de Temperatura actualizado: ");
+        Serial.println(umbtemp);
+  
+        Serial.print("Umbral de Gas actualizado: ");
+        Serial.println(umbgas);
+  
+        Serial.print("Umbral de Gas2 actualizado: ");
+        Serial.println(umbgas2);
+  
+        Serial.print("Umbral de Humedad actualizado: ");
+        Serial.println(umbhum);
+  
+        Serial.print("Umbral de Luz actualizado: ");
+        Serial.println(umbluz);
+  
+        umbral_eeprom.end();
+  
+  //***FIN EEPROM***
+  
+      }
+  
+      break;
+  
+      case CAMBIO_UMBRAL:
+  
+      if (lecb3 == SOLTADO)
+      {
+        umbral_seleccionado = umbral_seleccionado + 1;
+        lcd_1.clear();
+  
+        if (umbral_seleccionado > 5) 
+        {
+          umbral_seleccionado = 1;
+        }
+  
+        ESTADO = PANTALLA2;
+      }
+  
+      break;
+  
+      case SUMAR_UMBRAL:
+  
+      if (umbral_seleccionado == 1 && lecb4 == SOLTADO)
+      {
+        umbtemp = umbtemp + 1;
+        lcd_1.clear();
+        ESTADO = PANTALLA2;
+      }
+  
+      if (umbral_seleccionado == 2 && lecb4 == SOLTADO)
+      {
+        umbluz = umbluz + 1;
+        lcd_1.clear();
+        ESTADO = PANTALLA2;
+      }
+  
+      if (umbral_seleccionado == 3 && lecb4 == SOLTADO)
+      {
+        umbhum = umbhum + 1;
+        lcd_1.clear();
+        ESTADO = PANTALLA2;
+      }
+  
+      if (umbral_seleccionado == 4 && lecb4 == SOLTADO)
+      {
+        umbgas = umbgas + 1;
+        lcd_1.clear();
+        ESTADO = PANTALLA2;
+      }
+  
+      if (umbral_seleccionado == 5 && lecb4 == SOLTADO)
+      {
+        umbgas2 = umbgas2 + 1;
+        lcd_1.clear();
+        ESTADO = PANTALLA2;
+      }
+  
+      break;  
+  
+      case RESTAR_UMBRAL:
+  
+      if (umbral_seleccionado == 1 && lecb5 == SOLTADO)
+      {
+        umbtemp = umbtemp - 1;
+        lcd_1.clear();
+        ESTADO = PANTALLA2;
+      }
+  
+      if (umbral_seleccionado == 2 && lecb5 == SOLTADO)
+      {
+        umbluz = umbluz - 1;
+        lcd_1.clear();
+        ESTADO = PANTALLA2;
+      }
+  
+      if (umbral_seleccionado == 3 && lecb5 == SOLTADO)
+      {
+        umbhum = umbhum - 1;
+        lcd_1.clear();
+        ESTADO = PANTALLA2;
+      }
+  
+      if (umbral_seleccionado == 4 && lecb5 == SOLTADO)
+      {
+        umbgas = umbgas - 1;
+        lcd_1.clear();
+        ESTADO = PANTALLA2;
+      }
+  
+      if (umbral_seleccionado == 5 && lecb5 == SOLTADO)
+      {
+        umbgas2 = umbgas2 - 1;
+        lcd_1.clear();
+        ESTADO = PANTALLA2;
+      }
+  
+      break;
+  
+      case SUMAR_GMT:
+  
+      if (lecb1 == SOLTADO)
+      {
+        GMT = GMT + 1;
+  
+        if (GMT > 12)
+        {
+          GMT = 12;
+        }
+  
+        gmtOffset_sec = GMT * 3600;
+        configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  
+        lcd_1.clear();
+        ESTADO = PANTALLA2;
+      }
+  
+      if (lecb2 == PRESIONADO)
+      {
+        ESTADO = FASE2;
+      }
+  
+      break;
+  
+      case RESTAR_GMT:
+  
+      if (lecb2 == SOLTADO)
+      {
+        GMT = GMT - 1;
+  
+        if (GMT < -12)
+        {
+          GMT = -12;
+        }
+  
+        gmtOffset_sec = GMT * 3600;
+        configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+  
+        lcd_1.clear();
+        ESTADO = PANTALLA2;
+      }
+  
+      if (lecb1 == PRESIONADO)
+      {
+        ESTADO = FASE2;
+      }
+  
+      break;
+    } //FIN MAQUINA DE ESTADOS
+  }   
+} //FIN SEGUNDO LOOP
 
 unsigned long recibirTiempoTimestamp() 
 {
