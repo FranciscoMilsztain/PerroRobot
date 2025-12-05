@@ -141,9 +141,9 @@ Preferences umbral_eeprom;
 
 //***WIFI***
 
-const char* ssid = "Fibertel2025";
-const char* password = "Diciembre2026$";
-const char* ntpServer = "pool.ntp.org"; //La pagina web de donde se extrae la hora
+const char* ssid = "MECA-IoT";
+const char* password = "IoT$2026";
+const char* ntpServer = "south-america.pool.ntp.org"; //La pagina web de donde se extrae la hora
 
 //***FIN WIFI***
 
@@ -153,6 +153,7 @@ unsigned long timestamp;
 
 unsigned long timer;
 unsigned long timer1000;
+unsigned long timerpantalla;
 
 int segs = 0;
 int mins = 0;
@@ -167,7 +168,7 @@ const int daylightOffset_sec = 0;
 
 //***TELEGRAM***
 
-int bloqtelegram;
+int bloqtelegram; //Para que telegram no mande mas de una alerta
 
 //Token del bot 
 #define BOTtoken "8373807622:AAFkzYRff0xraeKJD-SOddWeex2Xt4lFyYs"
@@ -389,20 +390,22 @@ pinMode(led1, OUTPUT);
 pinMode(led2, OUTPUT);
 pinMode(led3, OUTPUT);
 
+pinMode(pingas, INPUT);
+pinMode(pingas2, INPUT);
+pinMode(pinluz, INPUT);
+
 //**FIN LEDS***
 
 //***WIFI***
-
-  WiFi.mode(WIFI_STA);
   
   //***MQTT***
   setupmqtt();
   //***FIN MQTT***
 
-    
-  //El BOT manda un mensaje a telegram para anunciar que se inició
-  Serial.print("Memoria libre antes del bot: ");
-  Serial.println(ESP.getFreeHeap());
+  
+//El BOT manda un mensaje a telegram para anunciar que se inició
+//  Serial.print("Memoria libre antes del bot: ");
+//  Serial.println(ESP.getFreeHeap());
 //  bot.sendMessage(CHAT_ID, "BOT iniciado", "");
 //  bot.sendMessage(CHAT_ID, "SE PUEDE PEDIR: TEMP ; GAS ; HUM ; LUZ", "");
 
@@ -515,122 +518,7 @@ pinMode(led3, OUTPUT);
 
 void loop() 
 {
-  timer = millis();
-
-  if (lecb1 == PRESIONADO)
-  {
-    Serial.println("BOT1");
-  }
-  if (lecb2 == PRESIONADO)
-  {
-    Serial.println("BOT2");
-  }
-  if (lecb3 == PRESIONADO)
-  {
-    Serial.println("BOT3");
-  }
-  if (lecb4 == PRESIONADO)
-  {
-    Serial.println("BOT4");
-  }
-  if (lecb5 == PRESIONADO)
-  {
-    Serial.println("BOT5");
-  }
-
-  //RECIBIR TIEMPO
-  timestamp = recibirTiempoTimestamp();
-
-//***LEDS***
-
-//SISTEMA PARA PRENDER LEDS
-if (maptemp > umbtemp)
-{
-  int checkeotemp = 1;
-}
-if (maptemp < umbtemp)
-{
-  int checkeotemp = 0;
-}
-
-if (maphum > umbhum)
-{
-  int checkeohum = 1;
-}
-if (maphum < umbhum)
-{
-  int checkeohum = 0;
-}
-
-if (mapluz > umbluz)
-{
-  int checkeoluz = 1;
-}
-if (mapluz < umbluz)
-{
-  int checkeoluz = 0;
-}
-
-if (mapgas > umbgas)
-{
-  int checkeogas = 1;
-}
-if (mapgas < umbgas)
-{
-  int checkeogas = 0;
-}
-
-if (mapgas2 > umbgas2)
-{
-  int checkeogas2 = 1;
-}
-if (mapgas2 < umbgas2)
-{
-  int checkeogas2 = 0;
-}
-
-if (checkeotemp + checkeohum + checkeoluz + checkeogas + checkeogas2 == 0)
-{
-  digitalWrite(led1, HIGH); //verde
-  digitalWrite(led2, LOW);  //naranja / amarillo?
-  digitalWrite(led3, LOW);  //rojo
-}
-if (checkeotemp + checkeohum + checkeoluz + checkeogas + checkeogas2 == 1)
-{
-  digitalWrite(led1, HIGH);
-  digitalWrite(led2, LOW);
-  digitalWrite(led3, LOW);
-}
-if (checkeotemp + checkeohum + checkeoluz + checkeogas + checkeogas2 == 2)
-{
-  digitalWrite(led1, LOW);
-  digitalWrite(led2, HIGH);
-  digitalWrite(led3, LOW);
-}
-if (checkeotemp + checkeohum + checkeoluz + checkeogas + checkeogas2 == 3)
-{
-  digitalWrite(led1, LOW);
-  digitalWrite(led2, HIGH);
-  digitalWrite(led3, LOW);
-}
-if (checkeotemp + checkeohum + checkeoluz + checkeogas + checkeogas2 > 3)
-{
-  digitalWrite(led1, LOW);
-  digitalWrite(led2, LOW);
-  digitalWrite(led3, HIGH);
-}
-
-//***FIN LEDS***
-
-//***BOTONES***
-
-  lecb1 = digitalRead(BOT1);
-  lecb2 = digitalRead(BOT2);
-  lecb3 = digitalRead(BOT3);
-  lecb4 = digitalRead(BOT4);
-  lecb5 = digitalRead(BOT5);
-
-//***FIN BOTONES***
+  
 }  
 //FIN void loop()
 //FIN void loop()
@@ -638,6 +526,7 @@ if (checkeotemp + checkeohum + checkeoluz + checkeogas + checkeogas2 > 3)
 
 void Task1code(void* pvParameters) 
 {
+  Serial.println("TASK1 INICIADA");
   //MQTT LOOP
   for(;;)
   {
@@ -652,14 +541,140 @@ void Task1code(void* pvParameters)
       lastMeasure2 = now;  /// cargo el valor actual de millis
       fun_entra();         ///ingreso los valores a la cola struct
     }
+    vTaskDelay(10 / portTICK_PERIOD_MS);
   }
 } //FIN PRIMER LOOP
 
 void Task2code(void* pvParameters) 
 {
+  Serial.println("TASK2 INICIADA");
+  
   //MAQUINA DE ESTADOS
   for(;;) 
-  {       
+  {
+    timer = millis();
+    lecb1 = digitalRead(BOT1);
+    lecb2 = digitalRead(BOT2);
+    lecb3 = digitalRead(BOT3);
+    lecb4 = digitalRead(BOT4);
+    lecb5 = digitalRead(BOT5);
+
+
+    if (lecb1 == PRESIONADO)
+    {
+      Serial.println("BOT1");
+    }
+    if (lecb2 == PRESIONADO)
+    {
+      Serial.println("BOT2");
+    }
+    if (lecb3 == PRESIONADO)
+    {
+      Serial.println("BOT3");
+    }
+    if (lecb4 == PRESIONADO)
+    {
+      Serial.println("BOT4");
+    }
+    if (lecb5 == PRESIONADO)
+    {
+      Serial.println("BOT5");
+    }
+
+    //RECIBIR TIEMPO
+    timestamp = recibirTiempoTimestamp();
+
+  //***LEDS***
+
+  //SISTEMA PARA PRENDER LEDS
+  if (maptemp > umbtemp)
+  {
+    int checkeotemp = 1;
+  }
+  if (maptemp < umbtemp)
+  {
+    int checkeotemp = 0;
+  }
+
+  if (maphum > umbhum)
+  {
+    int checkeohum = 1;
+  }
+  if (maphum < umbhum)
+  {
+    int checkeohum = 0;
+  }
+
+  if (mapluz > umbluz)
+  {
+    int checkeoluz = 1;
+  }
+  if (mapluz < umbluz)
+  {
+    int checkeoluz = 0;
+  }
+
+  if (mapgas > umbgas)
+  {
+    int checkeogas = 1;
+  }
+  if (mapgas < umbgas)
+  {
+    int checkeogas = 0;
+  }
+
+  if (mapgas2 > umbgas2)
+  {
+    int checkeogas2 = 1;
+  }
+  if (mapgas2 < umbgas2)
+  {
+    int checkeogas2 = 0;
+  }
+
+  if (checkeotemp + checkeohum + checkeoluz + checkeogas + checkeogas2 == 0)
+  {
+    digitalWrite(led1, HIGH); //verde
+    digitalWrite(led2, LOW);  //naranja / amarillo?
+    digitalWrite(led3, LOW);  //rojo
+  }
+  if (checkeotemp + checkeohum + checkeoluz + checkeogas + checkeogas2 == 1)
+  {
+    digitalWrite(led1, HIGH);
+    digitalWrite(led2, LOW);
+    digitalWrite(led3, LOW);
+  }
+  if (checkeotemp + checkeohum + checkeoluz + checkeogas + checkeogas2 == 2)
+  {
+    digitalWrite(led1, LOW);
+    digitalWrite(led2, HIGH);
+    digitalWrite(led3, LOW);
+  }
+  if (checkeotemp + checkeohum + checkeoluz + checkeogas + checkeogas2 == 3)
+  {
+    digitalWrite(led1, LOW);
+    digitalWrite(led2, HIGH);
+    digitalWrite(led3, LOW);
+  }
+  if (checkeotemp + checkeohum + checkeoluz + checkeogas + checkeogas2 > 3)
+  {
+    digitalWrite(led1, LOW);
+    digitalWrite(led2, LOW);
+    digitalWrite(led3, HIGH);
+  }
+
+  //***FIN LEDS***
+
+  //***BOTONES***
+
+    lecb1 = digitalRead(BOT1);
+    lecb2 = digitalRead(BOT2);
+    lecb3 = digitalRead(BOT3);
+    lecb4 = digitalRead(BOT4);
+    lecb5 = digitalRead(BOT5);
+
+  //***FIN BOTONES***
+
     switch (ESTADO)
     {
       case ESTADO0:
@@ -668,6 +683,7 @@ void Task2code(void* pvParameters)
       bot.sendMessage(CHAT_ID, "Presionar el boton 5 al mandar su mensaje", "");
   
       ESTADO = PANTALLA1;
+      lcd_1.clear();
       
       break;
   
@@ -675,9 +691,8 @@ void Task2code(void* pvParameters)
       case PANTALLA1:
   
   //***DISPLAY***
-      lcd_1.clear();
       lcd_1.setCursor(0, 0);
-  
+      
       if (lectura_seleccionada == 1)
       {
         lcd_1.print("TEMP:");
@@ -707,14 +722,6 @@ void Task2code(void* pvParameters)
         lcd_1.print("METANO:");
         lcd_1.print(mapgas2);
       }
-  
-      lcd_1.setCursor(3, 0);
-      lcd_1.setCursor(6, 0);
-      lcd_1.setCursor(9, 0);
-      lcd_1.setCursor(12, 0);
-      lcd_1.setCursor(14, 0);
-      lcd_1.print(" ");
-  
   
   //***FIN DISPLAY***
     
@@ -853,7 +860,14 @@ void Task2code(void* pvParameters)
       {
         ESTADO = CAMBIO_LECTURA;
       }
-  
+
+      lcd_1.setCursor(14, 1);
+      lcd_1.print(" ");
+      if (timer > timerpantalla)
+      {
+        timerpantalla = timer + 3000;
+        lcd_1.clear();
+      }
       break;
   
   //////////////////////PANTALLA2//////////////////////
@@ -861,7 +875,6 @@ void Task2code(void* pvParameters)
   
   //***DISPLAY***
   
-      lcd_1.clear();
       lcd_1.setCursor(0, 0);
       
       if (umbral_seleccionado == 1)
@@ -941,12 +954,12 @@ void Task2code(void* pvParameters)
         ESTADO = RESTAR_UMBRAL;
       }
       
-      lcd_1.setCursor(3, 0);
-      lcd_1.setCursor(6, 0);
-      lcd_1.setCursor(9, 0);
-      lcd_1.setCursor(12, 0);
-      lcd_1.setCursor(15, 0);
-  
+      if (timer > timerpantalla)
+      {
+        timerpantalla = timer + 3000;
+        lcd_1.clear();
+      }
+
       break;
   
       case CAMBIO_LECTURA: //CAMBIAR ESTO PARA AGREGAR QUE TAMBIEN SE HAGA DISPLAY DE LA HORA --> fake?
@@ -1174,6 +1187,7 @@ void Task2code(void* pvParameters)
   
       break;
     } //FIN MAQUINA DE ESTADOS
+    vTaskDelay(10 / portTICK_PERIOD_MS);
   }   
 } //FIN SEGUNDO LOOP
 
